@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AxiosError } from 'axios';
 
 export default function Login() {
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   if (authLoading) {
     return (
@@ -24,7 +25,7 @@ export default function Login() {
     return <Navigate to="/" replace />;
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
     if (!email.trim() || !password.trim()) {
@@ -36,7 +37,8 @@ export default function Login() {
       await login(email.trim(), password);
       navigate('/', { replace: true });
     } catch (err) {
-      const msg = err.response?.data?.detail || err.response?.data?.message || 'Invalid credentials. Please try again.';
+      const axiosErr = err as AxiosError<{ detail?: string; message?: string }>;
+      const msg = axiosErr.response?.data?.detail || axiosErr.response?.data?.message || 'Invalid credentials. Please try again.';
       setError(msg);
     } finally {
       setIsLoading(false);

@@ -30,17 +30,18 @@ if TYPE_CHECKING:
 
 
 class DocType(str, enum.Enum):
-    form16 = "form16"
-    form26as = "form26as"
-    ais = "ais"
-    tis = "tis"
-    gstr = "gstr"
-    notice = "notice"
+    itr = "itr"
+    form_16 = "form_16"
+    form_26as = "form_26as"
+    balance_sheet = "balance_sheet"
+    pnl_statement = "pnl_statement"
+    gst_return = "gst_return"
+    tds_return = "tds_return"
     bank_statement = "bank_statement"
-    financial_statement = "financial_statement"
-    rent_agreement = "rent_agreement"
-    sale_deed = "sale_deed"
-    contract = "contract"
+    notice = "notice"
+    computation = "computation"
+    audit_report = "audit_report"
+    agreement = "agreement"
     other = "other"
 
 

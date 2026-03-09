@@ -1,6 +1,21 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { computeApi } from '../api/client';
+import type {
+  IncomeTaxRequest,
+  IncomeTaxDeductions,
+  IncomeTaxResponse,
+  TDSRequest,
+  TDSResponse,
+  GSTRequest,
+  GSTResponse,
+  CapitalGainsRequest,
+  CapitalGainsResponse,
+  InterestRequest,
+  InterestResponse,
+  HRARequest,
+  HRAResponse,
+} from '../api/client';
 import {
   Calculator,
   Loader2,
@@ -14,10 +29,18 @@ import {
   TrendingUp,
   Percent,
   Home,
+  LucideIcon,
 } from 'lucide-react';
 import { formatCurrency, formatIndianNumber, getAssessmentYears } from '../utils/format';
+import { ReactNode } from 'react';
 
-const TABS = [
+interface TabDef {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const TABS: TabDef[] = [
   { id: 'tax', label: 'Income Tax', icon: IndianRupee },
   { id: 'tds', label: 'TDS', icon: ReceiptText },
   { id: 'gst', label: 'GST', icon: FileBarChart },
@@ -27,7 +50,15 @@ const TABS = [
 ];
 
 // ─── Number Input Helper ──────────────────────────────────────
-function NumInput({ label, value, onChange, placeholder, className = '' }) {
+interface NumInputProps {
+  label: string;
+  value: number | string;
+  onChange: (value: number) => void;
+  placeholder?: string;
+  className?: string;
+}
+
+function NumInput({ label, value, onChange, placeholder, className = '' }: NumInputProps) {
   return (
     <div className={className}>
       <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
@@ -45,7 +76,20 @@ function NumInput({ label, value, onChange, placeholder, className = '' }) {
   );
 }
 
-function SelectInput({ label, value, onChange, options, className = '' }) {
+interface SelectOption {
+  value: string | number;
+  label: string;
+}
+
+interface SelectInputProps {
+  label: string;
+  value: string | number;
+  onChange: (value: string) => void;
+  options: (string | SelectOption)[];
+  className?: string;
+}
+
+function SelectInput({ label, value, onChange, options, className = '' }: SelectInputProps) {
   return (
     <div className={className}>
       <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
@@ -54,17 +98,27 @@ function SelectInput({ label, value, onChange, options, className = '' }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
       >
-        {options.map((o) => (
-          <option key={typeof o === 'string' ? o : o.value} value={typeof o === 'string' ? o : o.value}>
-            {typeof o === 'string' ? o : o.label}
-          </option>
-        ))}
+        {options.map((o) => {
+          const optValue = typeof o === 'string' ? o : String(o.value);
+          const optLabel = typeof o === 'string' ? o : o.label;
+          return (
+            <option key={optValue} value={optValue}>
+              {optLabel}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
 }
 
-function ResultCard({ title, children, className = '' }) {
+interface ResultCardProps {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}
+
+function ResultCard({ title, children, className = '' }: ResultCardProps) {
   return (
     <div className={`bg-white rounded-xl border border-slate-200 overflow-hidden ${className}`}>
       <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
@@ -75,7 +129,15 @@ function ResultCard({ title, children, className = '' }) {
   );
 }
 
-function ResultRow({ label, value, bold, highlight, indent }) {
+interface ResultRowProps {
+  label: string;
+  value: string;
+  bold?: boolean;
+  highlight?: boolean;
+  indent?: boolean;
+}
+
+function ResultRow({ label, value, bold, highlight, indent }: ResultRowProps) {
   return (
     <div className={`flex justify-between py-1.5 ${bold ? 'font-semibold' : ''} ${highlight ? 'text-blue-700 bg-blue-50 -mx-2 px-2 rounded' : ''} ${indent ? 'pl-4' : ''}`}>
       <span className={`text-sm ${highlight ? 'text-blue-700' : bold ? 'text-slate-800' : 'text-slate-600'}`}>{label}</span>
@@ -86,8 +148,8 @@ function ResultRow({ label, value, bold, highlight, indent }) {
 
 // ─── INCOME TAX TAB ───────────────────────────────────────────
 function IncomeTaxTab() {
-  const [showDeductions, setShowDeductions] = useState(false);
-  const [form, setForm] = useState({
+  const [showDeductions, setShowDeductions] = useState<boolean>(false);
+  const [form, setForm] = useState<IncomeTaxRequest>({
     assessment_year: getAssessmentYears()[0],
     age_category: 'below_60',
     gross_salary: 0,
@@ -110,12 +172,15 @@ function IncomeTaxTab() {
     },
   });
 
-  const mutation = useMutation({
+  const mutation = useMutation<IncomeTaxResponse, Error, IncomeTaxRequest>({
     mutationFn: computeApi.tax,
   });
 
-  const update = (field, value) => setForm((f) => ({ ...f, [field]: value }));
-  const updateDed = (field, value) => setForm((f) => ({ ...f, deductions: { ...f.deductions, [field]: value } }));
+  const update = (field: keyof Omit<IncomeTaxRequest, 'deductions'>, value: string | number) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const updateDed = (field: keyof IncomeTaxDeductions, value: number) =>
+    setForm((f) => ({ ...f, deductions: { ...f.deductions, [field]: value } }));
 
   const handleCalculate = () => {
     mutation.mutate(form);
@@ -189,7 +254,7 @@ function IncomeTaxTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {mutation.error?.response?.data?.detail || 'Calculation failed. Please check your inputs.'}
+          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed. Please check your inputs.'}
         </div>
       )}
 
@@ -267,7 +332,7 @@ function IncomeTaxTab() {
                   <div>
                     <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">Old Regime Slabs</h5>
                     {result.old_regime.slab_breakdown.map((slab, i) => (
-                      <ResultRow key={i} label={slab.slab || slab.range} value={formatCurrency(slab.tax)} />
+                      <ResultRow key={i} label={slab.slab || slab.range || ''} value={formatCurrency(slab.tax)} />
                     ))}
                   </div>
                 )}
@@ -275,7 +340,7 @@ function IncomeTaxTab() {
                   <div>
                     <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">New Regime Slabs</h5>
                     {result.new_regime.slab_breakdown.map((slab, i) => (
-                      <ResultRow key={i} label={slab.slab || slab.range} value={formatCurrency(slab.tax)} />
+                      <ResultRow key={i} label={slab.slab || slab.range || ''} value={formatCurrency(slab.tax)} />
                     ))}
                   </div>
                 )}
@@ -290,15 +355,15 @@ function IncomeTaxTab() {
 
 // ─── TDS TAB ──────────────────────────────────────────────────
 function TDSTab() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<TDSRequest>({
     payment_type: 'salary',
     amount: 0,
     pan_available: true,
   });
 
-  const mutation = useMutation({ mutationFn: computeApi.tds });
+  const mutation = useMutation<TDSResponse, Error, TDSRequest>({ mutationFn: computeApi.tds });
 
-  const paymentTypes = [
+  const paymentTypes: SelectOption[] = [
     { value: 'salary', label: 'Salary (192)' },
     { value: 'interest_bank', label: 'Interest on Securities (193)' },
     { value: 'dividend', label: 'Dividend (194)' },
@@ -348,7 +413,7 @@ function TDSTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {mutation.error?.response?.data?.detail || 'Calculation failed'}
+          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
 
@@ -372,7 +437,7 @@ function TDSTab() {
 
 // ─── GST TAB ──────────────────────────────────────────────────
 function GSTTab() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<GSTRequest>({
     supply_type: 'goods',
     hsn_sac: '',
     place_of_supply: '',
@@ -381,9 +446,9 @@ function GSTTab() {
     rate: 18,
   });
 
-  const mutation = useMutation({ mutationFn: computeApi.gst });
+  const mutation = useMutation<GSTResponse, Error, GSTRequest>({ mutationFn: computeApi.gst });
 
-  const gstRates = [0, 0.25, 3, 5, 12, 18, 28];
+  const gstRates: number[] = [0, 0.25, 3, 5, 12, 18, 28];
 
   return (
     <div className="space-y-6">
@@ -447,7 +512,7 @@ function GSTTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {mutation.error?.response?.data?.detail || 'Calculation failed'}
+          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
 
@@ -472,7 +537,7 @@ function GSTTab() {
 
 // ─── CAPITAL GAINS TAB ────────────────────────────────────────
 function CapitalGainsTab() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CapitalGainsRequest>({
     asset_type: 'equity_shares',
     purchase_date: '',
     sale_date: '',
@@ -481,9 +546,9 @@ function CapitalGainsTab() {
     improvement_cost: 0,
   });
 
-  const mutation = useMutation({ mutationFn: computeApi.capitalGains });
+  const mutation = useMutation<CapitalGainsResponse, Error, CapitalGainsRequest>({ mutationFn: computeApi.capitalGains });
 
-  const assetTypes = [
+  const assetTypes: SelectOption[] = [
     { value: 'equity_shares', label: 'Listed Equity Shares' },
     { value: 'equity_mf', label: 'Equity Mutual Funds' },
     { value: 'debt_mf', label: 'Debt Mutual Funds' },
@@ -536,7 +601,7 @@ function CapitalGainsTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {mutation.error?.response?.data?.detail || 'Calculation failed'}
+          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
 
@@ -548,8 +613,8 @@ function CapitalGainsTab() {
             <div className="border-t border-slate-100 my-2" />
             <ResultRow label="Sale Consideration" value={formatCurrency(mutation.data.sale_price || form.sale_price)} />
             <ResultRow label="Cost of Acquisition" value={formatCurrency(mutation.data.purchase_price || form.purchase_price)} />
-            {mutation.data.indexed_cost > 0 && <ResultRow label="Indexed Cost of Acquisition" value={formatCurrency(mutation.data.indexed_cost)} />}
-            {mutation.data.improvement_cost > 0 && <ResultRow label="Cost of Improvement" value={formatCurrency(mutation.data.improvement_cost)} />}
+            {(mutation.data.indexed_cost ?? 0) > 0 && <ResultRow label="Indexed Cost of Acquisition" value={formatCurrency(mutation.data.indexed_cost)} />}
+            {(mutation.data.improvement_cost ?? 0) > 0 && <ResultRow label="Cost of Improvement" value={formatCurrency(mutation.data.improvement_cost)} />}
             <div className="border-t border-slate-200 my-2" />
             <ResultRow label="Capital Gain" value={formatCurrency(mutation.data.capital_gain)} bold />
             <ResultRow label="Tax Rate" value={`${mutation.data.tax_rate || 0}%`} />
@@ -572,7 +637,7 @@ function CapitalGainsTab() {
 
 // ─── INTEREST TAB ─────────────────────────────────────────────
 function InterestTab() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<InterestRequest>({
     section: '234b',
     tax_liability: 0,
     tax_paid: 0,
@@ -580,9 +645,9 @@ function InterestTab() {
     payment_date: '',
   });
 
-  const mutation = useMutation({ mutationFn: computeApi.interest });
+  const mutation = useMutation<InterestResponse, Error, InterestRequest>({ mutationFn: computeApi.interest });
 
-  const sections = [
+  const sections: SelectOption[] = [
     { value: '234a', label: '234A - Delay in Filing Return' },
     { value: '234b', label: '234B - Default in Advance Tax' },
     { value: '234c', label: '234C - Deferment of Advance Tax' },
@@ -630,7 +695,7 @@ function InterestTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {mutation.error?.response?.data?.detail || 'Calculation failed'}
+          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
 
@@ -652,7 +717,7 @@ function InterestTab() {
                 </summary>
                 <div className="mt-2 space-y-0.5">
                   {mutation.data.month_wise_breakdown.map((m, i) => (
-                    <ResultRow key={i} label={m.month || m.period} value={formatCurrency(m.interest)} indent />
+                    <ResultRow key={i} label={m.month || m.period || ''} value={formatCurrency(m.interest)} indent />
                   ))}
                 </div>
               </details>
@@ -666,7 +731,7 @@ function InterestTab() {
 
 // ─── HRA TAB ──────────────────────────────────────────────────
 function HRATab() {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<HRARequest>({
     basic_salary: 0,
     da: 0,
     hra_received: 0,
@@ -674,7 +739,7 @@ function HRATab() {
     is_metro: true,
   });
 
-  const mutation = useMutation({ mutationFn: computeApi.hra });
+  const mutation = useMutation<HRAResponse, Error, HRARequest>({ mutationFn: computeApi.hra });
 
   return (
     <div className="space-y-6">
@@ -709,7 +774,7 @@ function HRATab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {mutation.error?.response?.data?.detail || 'Calculation failed'}
+          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
 
@@ -741,9 +806,9 @@ function HRATab() {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────
 export default function TaxComputer() {
-  const [activeTab, setActiveTab] = useState('tax');
+  const [activeTab, setActiveTab] = useState<string>('tax');
 
-  const tabComponents = {
+  const tabComponents: Record<string, React.FC> = {
     tax: IncomeTaxTab,
     tds: TDSTab,
     gst: GSTTab,

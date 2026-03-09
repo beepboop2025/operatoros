@@ -1,6 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queriesApi, clientsApi } from '../api/client';
+import type {
+  Client,
+  QueryItem,
+  QuerySource,
+  QueryResponse,
+  QuerySubmitRequest,
+  ClientListResponse,
+  QueryListResponse,
+} from '../api/client';
 import {
   Send,
   Loader2,
@@ -15,29 +24,40 @@ import {
 } from 'lucide-react';
 import { formatDateTime } from '../utils/format';
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: (string | QuerySource)[];
+  isError?: boolean;
+  timestamp: string;
+}
+
 export default function QueryChat() {
   const queryClient = useQueryClient();
-  const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
-  const [question, setQuestion] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [showHistory, setShowHistory] = useState(false);
-  const [conversation, setConversation] = useState([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [question, setQuestion] = useState<string>('');
+  const [clientId, setClientId] = useState<string>('');
+  const [showHistory, setShowHistory] = useState<boolean>(false);
+  const [conversation, setConversation] = useState<ChatMessage[]>([]);
 
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientListResponse | Client[]>({
     queryKey: ['clients', 'list-all'],
     queryFn: () => clientsApi.list({ page_size: 200 }),
   });
 
-  const { data: history } = useQuery({
+  const { data: history } = useQuery<QueryListResponse | QueryItem[]>({
     queryKey: ['queries', 'history'],
     queryFn: () => queriesApi.list({ page_size: 50 }),
   });
 
-  const clientList = clients?.items || clients?.clients || (Array.isArray(clients) ? clients : []);
-  const historyList = history?.items || history?.queries || (Array.isArray(history) ? history : []);
+  const normalizedClients = clients as ClientListResponse | undefined;
+  const clientList: Client[] = normalizedClients?.items || normalizedClients?.clients || (Array.isArray(clients) ? clients : []);
 
-  const submitMutation = useMutation({
+  const normalizedHistory = history as QueryListResponse | undefined;
+  const historyList: QueryItem[] = normalizedHistory?.items || normalizedHistory?.queries || (Array.isArray(history) ? history : []);
+
+  const submitMutation = useMutation<QueryResponse, Error, QuerySubmitRequest>({
     mutationFn: queriesApi.submit,
     onSuccess: (data) => {
       setConversation((prev) => [
@@ -52,11 +72,12 @@ export default function QueryChat() {
       queryClient.invalidateQueries({ queryKey: ['queries'] });
     },
     onError: (err) => {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
       setConversation((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `Error: ${err.response?.data?.detail || 'Failed to process query. Please try again.'}`,
+          content: `Error: ${axiosErr.response?.data?.detail || 'Failed to process query. Please try again.'}`,
           isError: true,
           timestamp: new Date().toISOString(),
         },
@@ -68,7 +89,7 @@ export default function QueryChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const q = question.trim();
     if (!q || submitMutation.isPending) return;
@@ -88,18 +109,18 @@ export default function QueryChat() {
     });
   };
 
-  const loadHistoryItem = (item) => {
+  const loadHistoryItem = (item: QueryItem) => {
     setConversation([
       {
         role: 'user',
-        content: item.question || item.query,
-        timestamp: item.created_at,
+        content: item.question || item.query || '',
+        timestamp: item.created_at || new Date().toISOString(),
       },
       {
         role: 'assistant',
         content: item.answer || item.response || 'No response',
         sources: item.sources || item.citations || [],
-        timestamp: item.created_at,
+        timestamp: item.created_at || new Date().toISOString(),
       },
     ]);
     setShowHistory(false);
@@ -170,7 +191,7 @@ export default function QueryChat() {
           </div>
           <select
             value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => setClientId(e.target.value)}
             className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           >
             <option value="">General Query</option>
@@ -278,7 +299,7 @@ export default function QueryChat() {
               ref={inputRef}
               type="text"
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setQuestion(e.target.value)}
               placeholder="Ask a question about tax, compliance, or your clients..."
               className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm
                 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"

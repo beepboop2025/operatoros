@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { complianceApi, clientsApi } from '../api/client';
+import type {
+  Client,
+  ComplianceTask,
+  ClientListResponse,
+  ComplianceTaskListResponse,
+} from '../api/client';
 import {
   CalendarCheck,
   Filter,
@@ -12,13 +18,14 @@ import {
   ChevronDown,
   RefreshCw,
   Calendar,
+  LucideIcon,
 } from 'lucide-react';
 import { formatDate, statusColor, getAssessmentYears } from '../utils/format';
 
-const STATUS_OPTIONS = ['all', 'pending', 'in_progress', 'completed', 'overdue'];
-const TASK_TYPES = ['all', 'itr', 'gst', 'tds', 'advance_tax', 'audit', 'roc', 'other'];
+const STATUS_OPTIONS: string[] = ['all', 'pending', 'in_progress', 'completed', 'overdue'];
+const TASK_TYPES: string[] = ['all', 'itr', 'gst', 'tds', 'advance_tax', 'audit', 'roc', 'other'];
 
-const statusIcon = (status) => {
+const statusIcon = (status: string | undefined): LucideIcon => {
   switch (status) {
     case 'completed': return CheckCircle2;
     case 'in_progress': return Play;
@@ -27,34 +34,43 @@ const statusIcon = (status) => {
   }
 };
 
+interface ComplianceFilters {
+  status: string;
+  type: string;
+  client_id: string;
+}
+
 export default function ComplianceCalendar() {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState({ status: 'all', type: 'all', client_id: '' });
-  const [showFilters, setShowFilters] = useState(false);
-  const [genClientId, setGenClientId] = useState('');
-  const [genFY, setGenFY] = useState(getAssessmentYears()[0]);
-  const [showGenerate, setShowGenerate] = useState(false);
+  const [filters, setFilters] = useState<ComplianceFilters>({ status: 'all', type: 'all', client_id: '' });
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [genClientId, setGenClientId] = useState<string>('');
+  const [genFY, setGenFY] = useState<string>(getAssessmentYears()[0]);
+  const [showGenerate, setShowGenerate] = useState<boolean>(false);
 
-  const params = {};
+  const params: Record<string, string> = {};
   if (filters.status !== 'all') params.status = filters.status;
   if (filters.type !== 'all') params.task_type = filters.type;
   if (filters.client_id) params.client_id = filters.client_id;
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasks, isLoading } = useQuery<ComplianceTaskListResponse | ComplianceTask[]>({
     queryKey: ['compliance', 'tasks', params],
     queryFn: () => complianceApi.listTasks(params),
   });
 
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientListResponse | Client[]>({
     queryKey: ['clients', 'list-all'],
     queryFn: () => clientsApi.list({ page_size: 200 }),
   });
 
-  const clientList = clients?.items || clients?.clients || (Array.isArray(clients) ? clients : []);
-  const taskList = tasks?.items || tasks?.tasks || (Array.isArray(tasks) ? tasks : []);
+  const normalizedClients = clients as ClientListResponse | undefined;
+  const clientList: Client[] = normalizedClients?.items || normalizedClients?.clients || (Array.isArray(clients) ? clients : []);
+
+  const normalizedTasks = tasks as ComplianceTaskListResponse | undefined;
+  const taskList: ComplianceTask[] = normalizedTasks?.items || normalizedTasks?.tasks || (Array.isArray(tasks) ? tasks : []);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => complianceApi.updateTask(id, data),
+    mutationFn: ({ id, data }: { id: string; data: { status: string } }) => complianceApi.updateTask(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['compliance'] }),
   });
 
@@ -66,12 +82,12 @@ export default function ComplianceCalendar() {
     },
   });
 
-  const handleStatusUpdate = (taskId, newStatus) => {
+  const handleStatusUpdate = (taskId: string, newStatus: string) => {
     updateMutation.mutate({ id: taskId, data: { status: newStatus } });
   };
 
   // Group tasks by month
-  const grouped = {};
+  const grouped: Record<string, ComplianceTask[]> = {};
   taskList.forEach((task) => {
     const d = new Date(task.due_date);
     const key = isNaN(d.getTime()) ? 'Unknown' : d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -83,10 +99,10 @@ export default function ComplianceCalendar() {
   const sortedMonths = Object.keys(grouped).sort((a, b) => {
     const da = new Date(grouped[a][0]?.due_date);
     const db = new Date(grouped[b][0]?.due_date);
-    return da - db;
+    return da.getTime() - db.getTime();
   });
 
-  const statusColorDot = (status) => {
+  const statusColorDot = (status: string | undefined): string => {
     switch (status) {
       case 'completed': return 'bg-green-500';
       case 'in_progress': return 'bg-blue-500';
@@ -153,7 +169,9 @@ export default function ComplianceCalendar() {
             </button>
           </div>
           {generateMutation.isError && (
-            <p className="text-sm text-red-600 mt-2">{generateMutation.error?.response?.data?.detail || 'Failed to generate calendar'}</p>
+            <p className="text-sm text-red-600 mt-2">
+              {(generateMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to generate calendar'}
+            </p>
           )}
           {generateMutation.isSuccess && (
             <p className="text-sm text-green-600 mt-2">Calendar generated successfully!</p>
@@ -225,10 +243,10 @@ export default function ComplianceCalendar() {
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">{month}</h3>
               <div className="space-y-2">
                 {grouped[month]
-                  .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
+                  .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
                   .map((task, i) => {
                     const Icon = statusIcon(task.status);
-                    const daysLeft = Math.ceil((new Date(task.due_date) - new Date()) / 86400000);
+                    const daysLeft = Math.ceil((new Date(task.due_date).getTime() - new Date().getTime()) / 86400000);
                     return (
                       <div
                         key={task.id || i}

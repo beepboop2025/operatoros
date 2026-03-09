@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi, complianceApi } from '../api/client';
+import type {
+  DashboardStats,
+  ComplianceTask,
+  ActivityItem,
+  UpcomingTasksResponse,
+  RecentActivityResponse,
+} from '../api/client';
 import {
   Users,
   CalendarCheck,
@@ -16,11 +23,20 @@ import {
   CheckCircle2,
   XCircle,
   TrendingUp,
+  LucideIcon,
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../utils/format';
 
-function StatCard({ title, value, icon: Icon, color, sub }) {
-  const colors = {
+interface StatCardProps {
+  title: string;
+  value: number | string | undefined;
+  icon: LucideIcon;
+  color: string;
+  sub?: string;
+}
+
+function StatCard({ title, value, icon: Icon, color, sub }: StatCardProps) {
+  const colors: Record<string, string> = {
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
     red: 'bg-red-50 text-red-600',
@@ -57,38 +73,45 @@ function SkeletonCard() {
   );
 }
 
+interface QuickAction {
+  label: string;
+  icon: LucideIcon;
+  color: string;
+  to: string;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ['dashboard', 'stats'],
     queryFn: dashboardApi.stats,
   });
 
-  const { data: upcoming } = useQuery({
+  const { data: upcoming } = useQuery<UpcomingTasksResponse | ComplianceTask[]>({
     queryKey: ['compliance', 'upcoming'],
     queryFn: () => complianceApi.getUpcoming(7),
   });
 
-  const { data: activity } = useQuery({
+  const { data: activity } = useQuery<RecentActivityResponse | ActivityItem[]>({
     queryKey: ['dashboard', 'activity'],
     queryFn: dashboardApi.recentActivity,
   });
 
-  const quickActions = [
+  const quickActions: QuickAction[] = [
     { label: 'New Client', icon: Plus, color: 'bg-blue-500 hover:bg-blue-600', to: '/clients' },
     { label: 'Upload Document', icon: Upload, color: 'bg-green-500 hover:bg-green-600', to: '/documents' },
     { label: 'Tax Calculator', icon: Calculator, color: 'bg-purple-500 hover:bg-purple-600', to: '/compute' },
     { label: 'Submit Query', icon: Send, color: 'bg-amber-500 hover:bg-amber-600', to: '/queries' },
   ];
 
-  const urgencyColor = (days) => {
+  const urgencyColor = (days: number): string => {
     if (days < 0) return 'text-red-600 bg-red-50';
     if (days <= 2) return 'text-amber-600 bg-amber-50';
     return 'text-blue-600 bg-blue-50';
   };
 
-  const activityIcon = (type) => {
+  const activityIcon = (type: string | undefined): LucideIcon => {
     switch (type) {
       case 'query': return MessageSquare;
       case 'document': return FileText;
@@ -97,6 +120,22 @@ export default function Dashboard() {
       default: return Clock;
     }
   };
+
+  // Normalize upcoming data (API may return array or object with tasks key)
+  const upcomingTasks: ComplianceTask[] = (() => {
+    if (!upcoming) return [];
+    if (Array.isArray(upcoming)) return upcoming;
+    const obj = upcoming as UpcomingTasksResponse;
+    return obj.tasks || [];
+  })();
+
+  // Normalize activity data
+  const activityItems: ActivityItem[] = (() => {
+    if (!activity) return [];
+    if (Array.isArray(activity)) return activity;
+    const obj = activity as RecentActivityResponse;
+    return obj.items || [];
+  })();
 
   return (
     <div className="space-y-6">
@@ -155,14 +194,14 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="divide-y divide-slate-50">
-            {(!upcoming || upcoming.length === 0) ? (
+            {upcomingTasks.length === 0 ? (
               <div className="px-5 py-8 text-center">
                 <CheckCircle2 className="w-8 h-8 text-green-400 mx-auto mb-2" />
                 <p className="text-sm text-slate-500">No upcoming deadlines in the next 7 days</p>
               </div>
             ) : (
-              (upcoming.tasks || upcoming || []).slice(0, 6).map((task, i) => {
-                const daysLeft = task.days_until_due ?? Math.ceil((new Date(task.due_date) - new Date()) / 86400000);
+              upcomingTasks.slice(0, 6).map((task, i) => {
+                const daysLeft = task.days_until_due ?? Math.ceil((new Date(task.due_date).getTime() - new Date().getTime()) / 86400000);
                 return (
                   <div key={task.id || i} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50">
                     <div className={`px-2 py-1 rounded text-xs font-medium ${urgencyColor(daysLeft)}`}>
@@ -186,13 +225,13 @@ export default function Dashboard() {
             <h3 className="font-semibold text-slate-800">Recent Activity</h3>
           </div>
           <div className="divide-y divide-slate-50">
-            {(!activity || (Array.isArray(activity) && activity.length === 0)) ? (
+            {activityItems.length === 0 ? (
               <div className="px-5 py-8 text-center">
                 <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm text-slate-500">No recent activity</p>
               </div>
             ) : (
-              (activity.items || activity || []).slice(0, 6).map((item, i) => {
+              activityItems.slice(0, 6).map((item, i) => {
                 const Icon = activityIcon(item.type);
                 return (
                   <div key={item.id || i} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50">

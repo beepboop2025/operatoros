@@ -1,6 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, ChangeEvent, ReactElement } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { noticesApi, documentsApi } from '../api/client';
+import type {
+  Notice,
+  NoticeListResponse,
+  DraftNoticeResponse,
+} from '../api/client';
 import {
   AlertTriangle,
   Upload,
@@ -15,10 +20,11 @@ import {
   Shield,
   ChevronDown,
   Filter,
+  LucideIcon,
 } from 'lucide-react';
 import { formatDate, formatDateTime, statusColor } from '../utils/format';
 
-const URGENCY_COLORS = {
+const URGENCY_COLORS: Record<string, string> = {
   high: 'bg-red-100 text-red-700 border-red-200',
   medium: 'bg-amber-100 text-amber-700 border-amber-200',
   low: 'bg-green-100 text-green-700 border-green-200',
@@ -26,32 +32,33 @@ const URGENCY_COLORS = {
 
 export default function NoticeManager() {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef(null);
-  const [selectedNotice, setSelectedNotice] = useState(null);
-  const [showUpload, setShowUpload] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [draftingId, setDraftingId] = useState(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
+  const [showUpload, setShowUpload] = useState<boolean>(false);
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [draftingId, setDraftingId] = useState<string | null>(null);
 
-  const params = {};
+  const params: Record<string, string> = {};
   if (filterStatus) params.status = filterStatus;
 
-  const { data: notices, isLoading } = useQuery({
+  const { data: notices, isLoading } = useQuery<NoticeListResponse | Notice[]>({
     queryKey: ['notices', params],
     queryFn: () => noticesApi.list(params),
   });
 
-  const noticeList = notices?.items || notices?.notices || (Array.isArray(notices) ? notices : []);
+  const normalizedNotices = notices as NoticeListResponse | undefined;
+  const noticeList: Notice[] = normalizedNotices?.items || normalizedNotices?.notices || (Array.isArray(notices) ? notices : []);
 
   const processMutation = useMutation({
-    mutationFn: (id) => noticesApi.process(id),
+    mutationFn: (id: string) => noticesApi.process(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notices'] });
     },
   });
 
   const draftMutation = useMutation({
-    mutationFn: ({ id, data }) => noticesApi.draftResponse(id, data),
-    onSuccess: (data) => {
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => noticesApi.draftResponse(id, data),
+    onSuccess: (data: DraftNoticeResponse) => {
       setDraftingId(null);
       if (selectedNotice) {
         setSelectedNotice({ ...selectedNotice, draft_response: data.draft || data.response });
@@ -61,7 +68,7 @@ export default function NoticeManager() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file) => documentsApi.upload(file, undefined, 'notice'),
+    mutationFn: (file: File) => documentsApi.upload(file, undefined, 'notice'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notices'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
@@ -69,21 +76,21 @@ export default function NoticeManager() {
     },
   });
 
-  const handleFileUpload = (files) => {
+  const handleFileUpload = (files: FileList) => {
     Array.from(files).forEach((file) => uploadMutation.mutate(file));
   };
 
-  const urgencyBadge = (urgency) => {
-    const colors = URGENCY_COLORS[urgency] || URGENCY_COLORS.medium;
+  const urgencyBadge = (urgency: string | undefined): ReactElement => {
+    const colors = URGENCY_COLORS[urgency ?? ''] || URGENCY_COLORS.medium;
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border ${colors}`}>
         {urgency === 'high' && <AlertCircle className="w-3 h-3" />}
-        {urgency?.charAt(0).toUpperCase() + urgency?.slice(1) || 'Medium'}
+        {urgency ? urgency.charAt(0).toUpperCase() + urgency.slice(1) : 'Medium'}
       </span>
     );
   };
 
-  const noticeTypeIcon = (type) => {
+  const noticeTypeIcon = (type: string | undefined): LucideIcon => {
     switch (type) {
       case 'scrutiny': return Shield;
       case 'demand': return AlertTriangle;
@@ -104,7 +111,7 @@ export default function NoticeManager() {
           <div className="relative">
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
               className="pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none"
             >
               <option value="">All Status</option>
@@ -141,7 +148,7 @@ export default function NoticeManager() {
             type="file"
             className="hidden"
             accept=".pdf,.jpg,.jpeg,.png"
-            onChange={(e) => { if (e.target.files?.length) handleFileUpload(e.target.files); e.target.value = ''; }}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) handleFileUpload(e.target.files); e.target.value = ''; }}
           />
           {uploadMutation.isPending && (
             <div className="flex items-center justify-center gap-2 mt-3 text-sm text-blue-600">
@@ -149,7 +156,9 @@ export default function NoticeManager() {
             </div>
           )}
           {uploadMutation.isError && (
-            <p className="text-sm text-red-600 mt-3">{uploadMutation.error?.response?.data?.detail || 'Upload failed'}</p>
+            <p className="text-sm text-red-600 mt-3">
+              {(uploadMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed'}
+            </p>
           )}
         </div>
       )}
@@ -281,7 +290,7 @@ export default function NoticeManager() {
                     {selectedNotice.issues.map((issue, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
                         <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                        {typeof issue === 'string' ? issue : issue.description || issue.issue}
+                        {typeof issue === 'string' ? issue : issue.description || issue.issue || ''}
                       </li>
                     ))}
                   </ul>
@@ -327,7 +336,9 @@ export default function NoticeManager() {
               </div>
 
               {draftMutation.isError && (
-                <p className="text-sm text-red-600">{draftMutation.error?.response?.data?.detail || 'Failed to draft response'}</p>
+                <p className="text-sm text-red-600">
+                  {(draftMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to draft response'}
+                </p>
               )}
             </div>
           </div>

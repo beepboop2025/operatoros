@@ -20,15 +20,21 @@ from app.models.user import User
 from app.schemas.computation import (
     CapitalGainsRequest,
     CapitalGainsResponse,
+    GainType,
     GSTRequest,
     GSTResponse,
     IncomeTaxRequest,
     IncomeTaxResponse,
     InterestRequest,
     InterestResponse,
+    InterestSection,
+    MonthWiseDetail,
+    RegimeBreakdown,
+    SupplyTypeDetermined,
     TDSRequest,
     TDSResponse,
 )
+from app.services import tax_engine as engine_mod
 from app.services.tax_engine import (
     compute_capital_gains,
     compute_depreciation,
@@ -40,6 +46,232 @@ from app.services.tax_engine import (
 )
 
 router = APIRouter(tags=["compute"])
+
+_ZERO = Decimal("0")
+
+
+# --------------------------------------------------------------------------- #
+#  Adapters: Pydantic schema <-> Engine dataclass
+# --------------------------------------------------------------------------- #
+# The tax_engine defines its own dataclasses with different field names than
+# the Pydantic API schemas.  These adapter functions bridge the two worlds
+# so neither layer needs to know about the other's naming conventions.
+
+
+# -- Payment type -> TDS section mapping ------------------------------------
+
+_PAYMENT_TYPE_TO_SECTION = {
+    "salary": "192",
+    "professional_fees": "194J(b)",
+    "rent_land": "194I(b)",
+    "rent_plant": "194I(a)",
+    "contract": "194C",
+    "commission": "194H",
+    "interest": "194A",
+    "dividend": "194K",
+    "lottery": "194B",
+    "transfer_of_property": "194IA",
+}
+
+# -- Asset type mapping (Pydantic enum value -> Engine enum value) ----------
+
+_ASSET_TYPE_MAP = {
+    "property": "immovable_property",
+    "equity_listed": "listed_equity",
+    "equity_unlisted": "unlisted_shares",
+    "debt_mf": "debt_mutual_fund",
+    "gold": "gold",
+    "other": "other",
+}
+
+
+def _adapt_income_tax_request(schema: IncomeTaxRequest) -> engine_mod.IncomeTaxRequest:
+    """Convert Pydantic IncomeTaxRequest to engine dataclass."""
+    d = schema.deductions
+
+    # Map Pydantic deduction fields -> engine Deductions fields.
+    # Pydantic has a simpler set; engine has fine-grained fields.
+    engine_deductions = engine_mod.Deductions(
+        sec_80c=d.section_80c,
+        sec_80ccd_1b=d.section_80ccd_1b,
+        sec_80ccd_2=d.nps_employer,
+        sec_80d_self=d.section_80d,       # Pydantic lumps 80D into one field
+        sec_80e=d.section_80e,
+        sec_80g=d.section_80g,
+        sec_80tta=d.section_80tta,
+        sec_24b=_ZERO,                    # not exposed in Pydantic schema
+    )
+
+    # Map Pydantic age_category enum to engine enum.
+    # Both use the same underlying string values ("below_60", "60_to_80").
+    # Pydantic: above_80 = "above_80", Engine: super_senior_80_plus = "80_plus"
+    age_str = schema.age_category.value
+    if age_str == "above_80":
+        age_str = "80_plus"
+    engine_age = engine_mod.AgeCategory(age_str)
+
+    return engine_mod.IncomeTaxRequest(
+        assessment_year=schema.assessment_year,
+        age_category=engine_age,
+        gross_salary=schema.gross_salary,
+        income_from_house_property=schema.income_hp,
+        income_from_business=schema.business_income,
+        long_term_capital_gains=schema.capital_gains_lt,
+        short_term_capital_gains=schema.capital_gains_st,
+        income_from_other_sources=schema.other_income,
+        deductions=engine_deductions,
+    )
+
+
+def _adapt_income_tax_response(result: engine_mod.IncomeTaxResponse) -> IncomeTaxResponse:
+    """Convert engine IncomeTaxResponse to Pydantic schema."""
+
+    def _regime(r: engine_mod.RegimeResult) -> RegimeBreakdown:
+        return RegimeBreakdown(
+            gross_total_income=r.gross_total_income,
+            total_deductions=r.chapter_via_deductions + r.standard_deduction,
+            taxable_income=r.total_income,
+            tax_on_income=r.tax_on_normal_income + r.tax_on_stcg_equity + r.tax_on_ltcg,
+            surcharge=r.surcharge,
+            education_cess=r.cess,
+            total_tax_liability=r.total_tax_liability,
+        )
+
+    return IncomeTaxResponse(
+        old_regime=_regime(result.old_regime),
+        new_regime=_regime(result.new_regime),
+        recommended_regime=result.recommended_regime,
+        savings_amount=result.tax_saving,
+    )
+
+
+def _adapt_tds_request(schema: TDSRequest) -> engine_mod.TDSRequest:
+    """Convert Pydantic TDSRequest to engine dataclass."""
+    section = _PAYMENT_TYPE_TO_SECTION.get(schema.payment_type.value, "194J(b)")
+    return engine_mod.TDSRequest(
+        section=section,
+        payment_amount=schema.amount,
+        has_pan=schema.pan_available,
+        recipient_type=schema.recipient_type.value,
+    )
+
+
+def _adapt_tds_response(result: engine_mod.TDSResponse) -> TDSResponse:
+    """Convert engine TDSResponse to Pydantic schema."""
+    return TDSResponse(
+        section=result.section,
+        rate=result.applicable_rate * Decimal("100") if result.applicable_rate else _ZERO,
+        tds_amount=result.tds_amount,
+        surcharge_applicable=False,
+        threshold=result.threshold or _ZERO,
+        notes=result.notes,
+    )
+
+
+def _adapt_gst_request(schema: GSTRequest) -> engine_mod.GSTRequest:
+    """Convert Pydantic GSTRequest to engine dataclass.
+
+    The Pydantic schema accepts gst_rate as a percentage (e.g. 18 for 18%)
+    while the engine expects a fraction (0.18).  Convert here.
+    """
+    engine_rate = schema.gst_rate / Decimal("100") if schema.gst_rate is not None else None
+    return engine_mod.GSTRequest(
+        taxable_value=schema.taxable_value,
+        hsn_sac=schema.hsn_sac,
+        gst_rate=engine_rate,
+        place_of_supply_state=schema.place_of_supply,
+        place_of_origin_state=schema.place_of_origin,
+    )
+
+
+def _adapt_gst_response(result: engine_mod.GSTResponse) -> GSTResponse:
+    """Convert engine GSTResponse to Pydantic schema."""
+    return GSTResponse(
+        cgst=result.cgst,
+        sgst=result.sgst,
+        igst=result.igst,
+        total_tax=result.total_gst,
+        total_with_tax=result.invoice_total,
+        supply_type_determined=(
+            SupplyTypeDetermined.inter_state
+            if result.is_inter_state
+            else SupplyTypeDetermined.intra_state
+        ),
+    )
+
+
+def _adapt_capital_gains_request(
+    schema: CapitalGainsRequest,
+) -> engine_mod.CapitalGainsRequest:
+    """Convert Pydantic CapitalGainsRequest to engine dataclass."""
+    engine_asset_str = _ASSET_TYPE_MAP.get(schema.asset_type.value, "other")
+    engine_asset = engine_mod.AssetType(engine_asset_str)
+
+    return engine_mod.CapitalGainsRequest(
+        asset_type=engine_asset,
+        purchase_date=schema.purchase_date,
+        sale_date=schema.sale_date,
+        purchase_cost=schema.purchase_price,
+        sale_consideration=schema.sale_price,
+        improvement_cost=schema.improvement_cost,
+        expenses_on_transfer=schema.transfer_expenses,
+    )
+
+
+def _adapt_capital_gains_response(
+    result: engine_mod.CapitalGainsResponse,
+) -> CapitalGainsResponse:
+    """Convert engine CapitalGainsResponse to Pydantic schema.
+
+    The engine returns tax_rate as a fraction (e.g. 0.125 for 12.5%);
+    the Pydantic schema expects a percentage (12.5).
+    """
+    rate_pct = (result.tax_rate * Decimal("100")) if result.tax_rate else _ZERO
+    return CapitalGainsResponse(
+        gain_type=GainType.ltcg if result.is_long_term else GainType.stcg,
+        indexed_cost=result.indexed_cost,
+        capital_gain=result.capital_gain,
+        tax_rate=rate_pct,
+        tax_amount=result.tax_amount,
+        exemptions_available=result.available_exemptions,
+        holding_period_days=result.holding_period_days,
+    )
+
+
+def _adapt_interest_request(schema: InterestRequest) -> engine_mod.InterestRequest:
+    """Convert Pydantic InterestRequest to engine dataclass."""
+    return engine_mod.InterestRequest(
+        total_tax_liability=schema.tax_liability,
+        tds_paid=schema.tax_paid,
+        due_date_of_filing=schema.due_date,
+        actual_date_of_filing=schema.payment_date,
+        assessment_year=schema.assessment_year,
+    )
+
+
+def _adapt_interest_response(
+    result: engine_mod.InterestResponse,
+    section: InterestSection,
+) -> InterestResponse:
+    """Convert engine InterestResponse to Pydantic schema.
+
+    The engine computes all three sections (234A/B/C) at once; we pick the
+    relevant one based on the requested section.
+    """
+    section_map = {
+        InterestSection.s234a: (result.interest_234a, result.working_234a),
+        InterestSection.s234b: (result.interest_234b, result.working_234b),
+        InterestSection.s234c: (result.interest_234c, result.working_234c),
+    }
+    amount, working = section_map.get(section, (result.total_interest, {}))
+    rate = Decimal("1")  # 1% per month for all 234 sections
+
+    return InterestResponse(
+        interest_amount=amount,
+        calculation_details=[],
+        section=section,
+        rate=rate,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -155,18 +387,20 @@ async def compute_tax_endpoint(
     """
     await _validate_client(db, body.client_id)
 
-    result = compute_income_tax(body.data)
+    engine_req = _adapt_income_tax_request(body.data)
+    engine_result = compute_income_tax(engine_req)
+    result = _adapt_income_tax_response(engine_result)
 
     # Save to DB
     record = await _save_computation(
         db,
         client_id=body.client_id,
         assessment_year=body.data.assessment_year,
-        regime=result.recommended_regime.replace("_regime", ""),
-        gross_income=result.old_regime.gross_total_income,
+        regime=engine_result.recommended_regime.replace("_regime", ""),
+        gross_income=engine_result.old_regime.gross_total_income,
         tax_liability=min(
-            result.old_regime.total_tax_liability,
-            result.new_regime.total_tax_liability,
+            engine_result.old_regime.total_tax_liability,
+            engine_result.new_regime.total_tax_liability,
         ),
         computation_json={
             "type": "income_tax",
@@ -213,7 +447,9 @@ async def compute_tds_endpoint(
     """Calculate TDS rate and amount for a given payment type and amount."""
     await _validate_client(db, body.client_id)
 
-    result = compute_tds(body.data)
+    engine_req = _adapt_tds_request(body.data)
+    engine_result = compute_tds(engine_req)
+    result = _adapt_tds_response(engine_result)
 
     record = await _save_computation(
         db,
@@ -264,7 +500,9 @@ async def compute_gst_endpoint(
     """Compute CGST/SGST/IGST split based on supply type and place of supply."""
     await _validate_client(db, body.client_id)
 
-    result = compute_gst(body.data)
+    engine_req = _adapt_gst_request(body.data)
+    engine_result = compute_gst(engine_req)
+    result = _adapt_gst_response(engine_result)
 
     record = await _save_computation(
         db,
@@ -316,7 +554,9 @@ async def compute_capital_gains_endpoint(
     """Compute LTCG or STCG based on asset type, holding period, and cost indexation."""
     await _validate_client(db, body.client_id)
 
-    result = compute_capital_gains(body.data)
+    engine_req = _adapt_capital_gains_request(body.data)
+    engine_result = compute_capital_gains(engine_req)
+    result = _adapt_capital_gains_response(engine_result)
 
     record = await _save_computation(
         db,
@@ -371,7 +611,9 @@ async def compute_interest_endpoint(
     """
     await _validate_client(db, body.client_id)
 
-    result = compute_interest_234(body.data)
+    engine_req = _adapt_interest_request(body.data)
+    engine_result = compute_interest_234(engine_req)
+    result = _adapt_interest_response(engine_result, body.data.section)
 
     record = await _save_computation(
         db,

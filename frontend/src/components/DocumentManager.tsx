@@ -1,6 +1,12 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, ChangeEvent, DragEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, clientsApi } from '../api/client';
+import type {
+  Client,
+  Document as DocType,
+  ClientListResponse,
+  DocumentListResponse,
+} from '../api/client';
 import {
   Upload,
   FileText,
@@ -16,66 +22,68 @@ import {
   File,
   FileSpreadsheet,
   Image,
+  LucideIcon,
 } from 'lucide-react';
 import { formatDate, formatDateTime, statusColor } from '../utils/format';
 
-function fileIcon(name) {
+function fileIcon(name: string | undefined): LucideIcon {
   if (!name) return File;
   const ext = name.split('.').pop()?.toLowerCase();
-  if (['pdf'].includes(ext)) return FileText;
-  if (['xls', 'xlsx', 'csv'].includes(ext)) return FileSpreadsheet;
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return Image;
+  if (ext && ['pdf'].includes(ext)) return FileText;
+  if (ext && ['xls', 'xlsx', 'csv'].includes(ext)) return FileSpreadsheet;
+  if (ext && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return Image;
   return File;
 }
 
 export default function DocumentManager() {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef(null);
-  const [dragging, setDragging] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterClient, setFilterClient] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [uploadClient, setUploadClient] = useState('');
-  const [uploadDocType, setUploadDocType] = useState('');
-  const [selectedDoc, setSelectedDoc] = useState(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterClient, setFilterClient] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [uploadClient, setUploadClient] = useState<string>('');
+  const [uploadDocType, setUploadDocType] = useState<string>('');
+  const [selectedDoc, setSelectedDoc] = useState<DocType | null>(null);
 
-  const params = {};
+  const params: Record<string, string> = {};
   if (filterClient) params.client_id = filterClient;
   if (filterType) params.document_type = filterType;
 
-  const { data: docs, isLoading } = useQuery({
+  const { data: docs, isLoading } = useQuery<DocumentListResponse | DocType[]>({
     queryKey: ['documents', params],
     queryFn: () => documentsApi.list(params),
   });
 
-  const { data: searchResults, isFetching: searching } = useQuery({
+  const { data: searchResults, isFetching: searching } = useQuery<DocumentListResponse | DocType[]>({
     queryKey: ['documents', 'search', searchQuery],
     queryFn: () => documentsApi.search(searchQuery),
     enabled: searchQuery.length >= 3,
   });
 
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientListResponse | Client[]>({
     queryKey: ['clients', 'list-all'],
     queryFn: () => clientsApi.list({ page_size: 200 }),
   });
 
-  const clientList = clients?.items || clients?.clients || (Array.isArray(clients) ? clients : []);
+  const normalizedClients = clients as ClientListResponse | undefined;
+  const clientList: Client[] = normalizedClients?.items || normalizedClients?.clients || (Array.isArray(clients) ? clients : []);
 
   const uploadMutation = useMutation({
-    mutationFn: (file) => documentsApi.upload(file, uploadClient || undefined, uploadDocType || undefined),
+    mutationFn: (file: File) => documentsApi.upload(file, uploadClient || undefined, uploadDocType || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
     },
   });
 
-  const handleFiles = useCallback((files) => {
+  const handleFiles = useCallback((files: FileList) => {
     Array.from(files).forEach((file) => {
       uploadMutation.mutate(file);
     });
   }, [uploadMutation]);
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
     if (e.dataTransfer.files?.length) {
@@ -83,16 +91,23 @@ export default function DocumentManager() {
     }
   }, [handleFiles]);
 
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(true);
   }, []);
 
-  const docList = searchQuery.length >= 3
-    ? (searchResults?.items || searchResults?.documents || (Array.isArray(searchResults) ? searchResults : []))
-    : (docs?.items || docs?.documents || (Array.isArray(docs) ? docs : []));
+  // Normalize document list data
+  const normalizeDocList = (data: DocumentListResponse | DocType[] | undefined): DocType[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    return data.items || data.documents || [];
+  };
 
-  const docTypes = ['form_16', 'form_26as', 'bank_statement', 'balance_sheet', 'gst_return', 'itr', 'notice', 'invoice', 'other'];
+  const docList: DocType[] = searchQuery.length >= 3
+    ? normalizeDocList(searchResults)
+    : normalizeDocList(docs);
+
+  const docTypes: string[] = ['form_16', 'form_26as', 'bank_statement', 'balance_sheet', 'gst_return', 'itr', 'notice', 'invoice', 'other'];
 
   return (
     <div className="space-y-4">
@@ -127,7 +142,7 @@ export default function DocumentManager() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
           <select
             value={uploadClient}
-            onChange={(e) => setUploadClient(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => setUploadClient(e.target.value)}
             className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           >
             <option value="">No Client (General)</option>
@@ -137,7 +152,7 @@ export default function DocumentManager() {
           </select>
           <select
             value={uploadDocType}
-            onChange={(e) => setUploadDocType(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => setUploadDocType(e.target.value)}
             className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           >
             <option value="">Auto-detect Type</option>
@@ -156,7 +171,7 @@ export default function DocumentManager() {
             type="file"
             multiple
             className="hidden"
-            onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ''; }}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ''; }}
           />
         </div>
 
@@ -172,7 +187,7 @@ export default function DocumentManager() {
         )}
         {uploadMutation.isError && (
           <div className="flex items-center justify-center gap-2 mt-4 text-sm text-red-600">
-            <AlertCircle className="w-4 h-4" /> {uploadMutation.error?.response?.data?.detail || 'Upload failed'}
+            <AlertCircle className="w-4 h-4" /> {(uploadMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed'}
           </div>
         )}
       </div>
@@ -184,7 +199,7 @@ export default function DocumentManager() {
             <label className="block text-xs font-medium text-slate-500 mb-1">Client</label>
             <select
               value={filterClient}
-              onChange={(e) => setFilterClient(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterClient(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             >
               <option value="">All Clients</option>
@@ -197,7 +212,7 @@ export default function DocumentManager() {
             <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
             <select
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterType(e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             >
               <option value="">All Types</option>
@@ -216,7 +231,7 @@ export default function DocumentManager() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             placeholder="Search documents (semantic search, min 3 characters)..."
             className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />

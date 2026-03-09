@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 # Add backend directory to path so we can import app modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import Base  # noqa: E402
+from app.models import Base  # noqa: E402
 
 # Import all models so Alembic can detect them for autogenerate
 from app.models import *  # noqa: F401, F403, E402

@@ -16,9 +16,12 @@ class TaskType(str, Enum):
     tds_return = "tds_return"
     gst_return = "gst_return"
     audit = "audit"
+    tax_audit = "tax_audit"
     roc_filing = "roc_filing"
     esi_pf = "esi_pf"
     professional_tax = "professional_tax"
+    dir3_kyc = "dir3_kyc"
+    llp_form = "llp_form"
     other = "other"
 
 

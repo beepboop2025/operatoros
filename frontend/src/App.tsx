@@ -10,8 +10,13 @@ import DocumentManager from './components/DocumentManager';
 import TaxComputer from './components/TaxComputer';
 import QueryChat from './components/QueryChat';
 import NoticeManager from './components/NoticeManager';
+import { ReactNode } from 'react';
 
-function ProtectedRoute({ children }) {
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -29,7 +34,7 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 }
 
 export default function App() {

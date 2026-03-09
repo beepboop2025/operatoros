@@ -36,8 +36,12 @@ class EntityType(str, enum.Enum):
     huf = "huf"
     partnership = "partnership"
     llp = "llp"
-    company = "company"
+    private_limited = "private_limited"
+    public_limited = "public_limited"
     trust = "trust"
+    society = "society"
+    aop = "aop"
+    boi = "boi"
 
 
 class Client(Base):

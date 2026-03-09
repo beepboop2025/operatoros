@@ -30,13 +30,13 @@ if TYPE_CHECKING:
 class NoticeType(str, enum.Enum):
     intimation_143_1 = "intimation_143_1"
     scrutiny_143_2 = "scrutiny_143_2"
-    reassessment_148 = "reassessment_148"
-    demand = "demand"
+    demand_156 = "demand_156"
     rectification_154 = "rectification_154"
-    penalty = "penalty"
-    gst_asmt10 = "gst_asmt10"
-    gst_drc01 = "gst_drc01"
-    gst_drc07 = "gst_drc07"
+    penalty_271 = "penalty_271"
+    reassessment_148 = "reassessment_148"
+    information_133_6 = "information_133_6"
+    gst_asmt_10 = "gst_asmt_10"
+    gst_drc_01 = "gst_drc_01"
     other = "other"
 
 

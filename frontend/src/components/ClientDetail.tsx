@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { clientsApi, complianceApi, documentsApi } from '../api/client';
+import type {
+  Client,
+  ComplianceTask,
+  Document,
+  ClientListResponse,
+  ComplianceTaskListResponse,
+  DocumentListResponse,
+} from '../api/client';
 import {
   ArrowLeft,
   Building2,
@@ -17,33 +25,40 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  LucideIcon,
 } from 'lucide-react';
 import { formatDate, statusColor } from '../utils/format';
 
-const tabs = [
+interface TabItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const tabs: TabItem[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
   { id: 'compliance', label: 'Compliance', icon: CalendarCheck },
   { id: 'documents', label: 'Documents', icon: FileText },
 ];
 
 export default function ClientDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
-  const { data: client, isLoading, isError } = useQuery({
+  const { data: client, isLoading, isError } = useQuery<Client>({
     queryKey: ['clients', id],
-    queryFn: () => clientsApi.get(id),
+    queryFn: () => clientsApi.get(id!),
     enabled: Boolean(id),
   });
 
-  const { data: tasks } = useQuery({
+  const { data: tasks } = useQuery<ComplianceTaskListResponse | ComplianceTask[]>({
     queryKey: ['compliance', 'tasks', { client_id: id }],
     queryFn: () => complianceApi.listTasks({ client_id: id }),
     enabled: Boolean(id),
   });
 
-  const { data: docs } = useQuery({
+  const { data: docs } = useQuery<DocumentListResponse | Document[]>({
     queryKey: ['documents', { client_id: id }],
     queryFn: () => documentsApi.list({ client_id: id }),
     enabled: Boolean(id),
@@ -69,13 +84,17 @@ export default function ClientDetail() {
     );
   }
 
-  const entityLabel = (type) => {
-    const map = { individual: 'Individual', huf: 'HUF', partnership: 'Partnership', llp: 'LLP', pvt_ltd: 'Pvt. Ltd.', public_ltd: 'Public Ltd.', trust: 'Trust', society: 'Society' };
-    return map[type] || type || '--';
+  const entityLabel = (type: string | undefined): string => {
+    const map: Record<string, string> = { individual: 'Individual', huf: 'HUF', partnership: 'Partnership', llp: 'LLP', pvt_ltd: 'Pvt. Ltd.', public_ltd: 'Public Ltd.', trust: 'Trust', society: 'Society' };
+    return map[type ?? ''] || type || '--';
   };
 
-  const taskList = tasks?.items || tasks?.tasks || (Array.isArray(tasks) ? tasks : []);
-  const docList = docs?.items || docs?.documents || (Array.isArray(docs) ? docs : []);
+  // Normalize task and doc lists
+  const normalizedTasks = tasks as ComplianceTaskListResponse | undefined;
+  const taskList: ComplianceTask[] = normalizedTasks?.items || normalizedTasks?.tasks || (Array.isArray(tasks) ? tasks : []);
+
+  const normalizedDocs = docs as DocumentListResponse | undefined;
+  const docList: Document[] = normalizedDocs?.items || normalizedDocs?.documents || (Array.isArray(docs) ? docs : []);
 
   const completedTasks = taskList.filter((t) => t.status === 'completed').length;
   const overdueTasks = taskList.filter((t) => t.status === 'overdue').length;

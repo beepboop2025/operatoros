@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, FormEvent, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { clientsApi } from '../api/client';
+import type { Client, ClientCreateRequest, ClientListResponse } from '../api/client';
 import {
   Plus,
   Search,
@@ -15,10 +16,16 @@ import {
   Mail,
 } from 'lucide-react';
 import { statusColor } from '../utils/format';
+import { AxiosError } from 'axios';
 
-function AddClientModal({ onClose, onSuccess }) {
+interface AddClientModalProps {
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ClientCreateRequest>({
     firm_name: '',
     pan: '',
     gstin: '',
@@ -27,7 +34,7 @@ function AddClientModal({ onClose, onSuccess }) {
     email: '',
     phone: '',
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string>('');
 
   const mutation = useMutation({
     mutationFn: clientsApi.create,
@@ -36,14 +43,15 @@ function AddClientModal({ onClose, onSuccess }) {
       onSuccess?.();
       onClose();
     },
-    onError: (err) => {
+    onError: (err: AxiosError<{ detail?: string }>) => {
       setError(err.response?.data?.detail || 'Failed to create client');
     },
   });
 
-  const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const update = (field: keyof ClientCreateRequest, value: string) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!form.firm_name.trim()) {
       setError('Firm name is required');
@@ -83,7 +91,7 @@ function AddClientModal({ onClose, onSuccess }) {
             <input
               type="text"
               value={form.firm_name}
-              onChange={(e) => update('firm_name', e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => update('firm_name', e.target.value)}
               placeholder="e.g. Sharma & Associates"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
@@ -94,8 +102,8 @@ function AddClientModal({ onClose, onSuccess }) {
               <label className="block text-sm font-medium text-slate-700 mb-1">PAN</label>
               <input
                 type="text"
-                value={form.pan}
-                onChange={(e) => update('pan', e.target.value.toUpperCase())}
+                value={form.pan || ''}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => update('pan', e.target.value.toUpperCase())}
                 placeholder="ABCDE1234F"
                 maxLength={10}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
@@ -105,8 +113,8 @@ function AddClientModal({ onClose, onSuccess }) {
               <label className="block text-sm font-medium text-slate-700 mb-1">GSTIN</label>
               <input
                 type="text"
-                value={form.gstin}
-                onChange={(e) => update('gstin', e.target.value.toUpperCase())}
+                value={form.gstin || ''}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => update('gstin', e.target.value.toUpperCase())}
                 placeholder="22ABCDE1234F1Z5"
                 maxLength={15}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
@@ -117,8 +125,8 @@ function AddClientModal({ onClose, onSuccess }) {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Entity Type</label>
             <select
-              value={form.entity_type}
-              onChange={(e) => update('entity_type', e.target.value)}
+              value={form.entity_type || 'individual'}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => update('entity_type', e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
             >
               {entityTypes.map((t) => (
@@ -131,8 +139,8 @@ function AddClientModal({ onClose, onSuccess }) {
             <label className="block text-sm font-medium text-slate-700 mb-1">Contact Person</label>
             <input
               type="text"
-              value={form.contact_person}
-              onChange={(e) => update('contact_person', e.target.value)}
+              value={form.contact_person || ''}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => update('contact_person', e.target.value)}
               placeholder="Full Name"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
@@ -143,8 +151,8 @@ function AddClientModal({ onClose, onSuccess }) {
               <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
               <input
                 type="email"
-                value={form.email}
-                onChange={(e) => update('email', e.target.value)}
+                value={form.email || ''}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => update('email', e.target.value)}
                 placeholder="client@example.com"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
@@ -153,8 +161,8 @@ function AddClientModal({ onClose, onSuccess }) {
               <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
               <input
                 type="tel"
-                value={form.phone}
-                onChange={(e) => update('phone', e.target.value)}
+                value={form.phone || ''}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => update('phone', e.target.value)}
                 placeholder="+91 98765 43210"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
@@ -186,22 +194,24 @@ function AddClientModal({ onClose, onSuccess }) {
 
 export default function ClientList() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [search, setSearch] = useState<string>('');
+  const [page, setPage] = useState<number>(1);
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const pageSize = 20;
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError } = useQuery<ClientListResponse | Client[]>({
     queryKey: ['clients', { search, page, pageSize }],
     queryFn: () => clientsApi.list({ search, page, page_size: pageSize }),
   });
 
-  const clients = data?.items || data?.clients || (Array.isArray(data) ? data : []);
-  const total = data?.total || clients.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  // Normalize list data from different API response shapes
+  const normalizedData = data as ClientListResponse | undefined;
+  const clients: Client[] = normalizedData?.items || normalizedData?.clients || (Array.isArray(data) ? data : []);
+  const total: number = normalizedData?.total || clients.length;
+  const totalPages: number = Math.max(1, Math.ceil(total / pageSize));
 
-  const entityLabel = (type) => {
-    const map = {
+  const entityLabel = (type: string | undefined): string => {
+    const map: Record<string, string> = {
       individual: 'Individual',
       huf: 'HUF',
       partnership: 'Partnership',
@@ -211,7 +221,7 @@ export default function ClientList() {
       trust: 'Trust',
       society: 'Society',
     };
-    return map[type] || type || '--';
+    return map[type ?? ''] || type || '--';
   };
 
   return (
@@ -237,7 +247,7 @@ export default function ClientList() {
           <input
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by name, PAN, or GSTIN..."
             className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />

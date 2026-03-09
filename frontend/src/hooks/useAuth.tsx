@@ -1,12 +1,27 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { authApi } from '../api/client';
+import type { User, LoginResponse } from '../api/client';
 
-const AuthContext = createContext(null);
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<LoginResponse>;
+  logout: () => void;
+  checkAuth: () => Promise<void>;
+}
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem('auditmind_token'));
-  const [isLoading, setIsLoading] = useState(true);
+const AuthContext = createContext<AuthContextType | null>(null);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('auditmind_token'));
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const isAuthenticated = Boolean(token && user);
 
@@ -36,9 +51,9 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, [checkAuth]);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResponse> => {
     const data = await authApi.login(email, password);
-    const jwt = data.access_token || data.token;
+    const jwt = data.access_token || data.token || '';
     localStorage.setItem('auditmind_token', jwt);
     setToken(jwt);
     // Fetch user profile
@@ -48,7 +63,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('auditmind_user', JSON.stringify(me));
     } catch {
       // If getMe fails, use whatever came back from login
-      const fallback = data.user || { email };
+      const fallback: User = data.user || { id: '', email };
       setUser(fallback);
     }
     return data;
@@ -68,7 +83,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;

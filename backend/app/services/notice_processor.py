@@ -257,8 +257,8 @@ class NoticeProcessor:
             # Validate against known types
             valid_types = {
                 "intimation_143_1", "scrutiny_143_2", "reassessment_148",
-                "demand", "rectification_154", "penalty",
-                "gst_asmt10", "gst_drc01", "gst_drc07", "other",
+                "demand_156", "rectification_154", "penalty_271",
+                "information_133_6", "gst_asmt_10", "gst_drc_01", "other",
             }
             if raw in valid_types:
                 return raw

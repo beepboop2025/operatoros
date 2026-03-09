@@ -5,28 +5,30 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.56.0",
+    "axios": "^1.7.7",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.441.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
-    "@tanstack/react-query": "^5.56.0",
-    "lucide-react": "^0.441.0",
-    "date-fns": "^3.6.0",
-    "recharts": "^2.12.0",
-    "axios": "^1.7.7"
+    "recharts": "^2.12.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.8",
-    "tailwindcss": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^9.10.0",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "@types/react": "^18.3.8",
-    "@types/react-dom": "^18.3.0"
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.8"
   }
 }

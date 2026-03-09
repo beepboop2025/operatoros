@@ -29,12 +29,15 @@ if TYPE_CHECKING:
 
 
 class TaskType(str, enum.Enum):
-    tds_return = "tds_return"
-    advance_tax = "advance_tax"
     itr_filing = "itr_filing"
+    advance_tax = "advance_tax"
+    tds_return = "tds_return"
     gst_return = "gst_return"
-    roc_filing = "roc_filing"
+    audit = "audit"
     tax_audit = "tax_audit"
+    roc_filing = "roc_filing"
+    esi_pf = "esi_pf"
+    professional_tax = "professional_tax"
     dir3_kyc = "dir3_kyc"
     llp_form = "llp_form"
     other = "other"
@@ -43,6 +46,7 @@ class TaskType(str, enum.Enum):
 class ComplianceStatus(str, enum.Enum):
     pending = "pending"
     in_progress = "in_progress"
+    under_review = "under_review"
     completed = "completed"
     overdue = "overdue"
 

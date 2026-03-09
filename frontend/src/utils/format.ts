@@ -2,8 +2,8 @@
  * Format a number as Indian currency (INR)
  * e.g. 1234567 -> "12,34,567"
  */
-export function formatIndianNumber(num) {
-  if (num == null || isNaN(num)) return '0';
+export function formatIndianNumber(num: number | string | null | undefined): string {
+  if (num == null || isNaN(Number(num))) return '0';
   const n = Number(num);
   const isNeg = n < 0;
   const abs = Math.abs(n);
@@ -29,8 +29,8 @@ export function formatIndianNumber(num) {
  * Format currency with INR symbol
  * e.g. 1234567.89 -> "Rs.12,34,567.89"
  */
-export function formatCurrency(amount, decimals = 0) {
-  if (amount == null || isNaN(amount)) return '\u20B90';
+export function formatCurrency(amount: number | string | null | undefined, decimals: number = 0): string {
+  if (amount == null || isNaN(Number(amount))) return '\u20B90';
   const n = Number(amount);
   const whole = formatIndianNumber(Math.floor(Math.abs(n)));
   const sign = n < 0 ? '-' : '';
@@ -45,8 +45,8 @@ export function formatCurrency(amount, decimals = 0) {
 /**
  * Format currency in lakhs/crores for large numbers
  */
-export function formatCurrencyShort(amount) {
-  if (amount == null || isNaN(amount)) return '\u20B90';
+export function formatCurrencyShort(amount: number | string | null | undefined): string {
+  if (amount == null || isNaN(Number(amount))) return '\u20B90';
   const n = Number(amount);
   const abs = Math.abs(n);
   const sign = n < 0 ? '-' : '';
@@ -60,7 +60,7 @@ export function formatCurrencyShort(amount) {
 /**
  * Format date as DD/MM/YYYY (Indian standard)
  */
-export function formatDate(date) {
+export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '--';
   const d = new Date(date);
   if (isNaN(d.getTime())) return '--';
@@ -73,7 +73,7 @@ export function formatDate(date) {
 /**
  * Format date and time
  */
-export function formatDateTime(date) {
+export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return '--';
   const d = new Date(date);
   if (isNaN(d.getTime())) return '--';
@@ -88,9 +88,9 @@ export function formatDateTime(date) {
 /**
  * Assessment years list
  */
-export function getAssessmentYears() {
+export function getAssessmentYears(): string[] {
   const current = new Date().getFullYear();
-  const years = [];
+  const years: string[] = [];
   for (let y = current + 1; y >= current - 3; y--) {
     years.push(`${y - 1}-${String(y).slice(2)}`);
   }
@@ -100,8 +100,8 @@ export function getAssessmentYears() {
 /**
  * Status badge color mapping
  */
-export function statusColor(status) {
-  const map = {
+export function statusColor(status: string | null | undefined): string {
+  const map: Record<string, string> = {
     completed: 'bg-green-100 text-green-700',
     done: 'bg-green-100 text-green-700',
     active: 'bg-blue-100 text-blue-700',
@@ -113,5 +113,5 @@ export function statusColor(status) {
     processing: 'bg-purple-100 text-purple-700',
     uploaded: 'bg-cyan-100 text-cyan-700',
   };
-  return map[status?.toLowerCase()] || 'bg-slate-100 text-slate-600';
+  return map[status?.toLowerCase() ?? ''] || 'bg-slate-100 text-slate-600';
 }
