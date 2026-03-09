@@ -1,0 +1,86 @@
+version: "3.9"
+
+services:
+  fastapi:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: operatoros-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --log-level info
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    restart: always
+
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "1.0"
+          memory: 1G
+    restart: always
+
+  redis:
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-changeme}
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: always
+
+  n8n:
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: always
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: operatoros-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - fastapi
+      - n8n
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    restart: always
+    networks:
+      - operatoros-net
+
+volumes:
+  caddy_data:
+    name: operatoros_caddy_data
+  caddy_config:
+    name: operatoros_caddy_config

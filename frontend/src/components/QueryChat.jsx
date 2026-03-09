@@ -1,0 +1,301 @@
+import { useState, useRef, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queriesApi, clientsApi } from '../api/client';
+import {
+  Send,
+  Loader2,
+  MessageSquare,
+  User,
+  Bot,
+  Clock,
+  BookOpen,
+  ChevronRight,
+  History,
+  X,
+} from 'lucide-react';
+import { formatDateTime } from '../utils/format';
+
+export default function QueryChat() {
+  const queryClient = useQueryClient();
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const [question, setQuestion] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [conversation, setConversation] = useState([]);
+
+  const { data: clients } = useQuery({
+    queryKey: ['clients', 'list-all'],
+    queryFn: () => clientsApi.list({ page_size: 200 }),
+  });
+
+  const { data: history } = useQuery({
+    queryKey: ['queries', 'history'],
+    queryFn: () => queriesApi.list({ page_size: 50 }),
+  });
+
+  const clientList = clients?.items || clients?.clients || (Array.isArray(clients) ? clients : []);
+  const historyList = history?.items || history?.queries || (Array.isArray(history) ? history : []);
+
+  const submitMutation = useMutation({
+    mutationFn: queriesApi.submit,
+    onSuccess: (data) => {
+      setConversation((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.answer || data.response || 'No response received.',
+          sources: data.sources || data.citations || [],
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['queries'] });
+    },
+    onError: (err) => {
+      setConversation((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `Error: ${err.response?.data?.detail || 'Failed to process query. Please try again.'}`,
+          isError: true,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    },
+  });
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversation]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const q = question.trim();
+    if (!q || submitMutation.isPending) return;
+
+    setConversation((prev) => [
+      ...prev,
+      {
+        role: 'user',
+        content: q,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+    setQuestion('');
+    submitMutation.mutate({
+      question: q,
+      client_id: clientId || undefined,
+    });
+  };
+
+  const loadHistoryItem = (item) => {
+    setConversation([
+      {
+        role: 'user',
+        content: item.question || item.query,
+        timestamp: item.created_at,
+      },
+      {
+        role: 'assistant',
+        content: item.answer || item.response || 'No response',
+        sources: item.sources || item.citations || [],
+        timestamp: item.created_at,
+      },
+    ]);
+    setShowHistory(false);
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-8rem)] gap-4">
+      {/* History sidebar (desktop) */}
+      <div className={`
+        ${showHistory ? 'fixed inset-0 z-50 lg:relative lg:inset-auto' : 'hidden lg:block'}
+        lg:w-72 shrink-0
+      `}>
+        {showHistory && (
+          <div className="fixed inset-0 bg-black/50 lg:hidden" onClick={() => setShowHistory(false)} />
+        )}
+        <div className={`
+          ${showHistory ? 'fixed right-0 top-0 h-full w-80 z-50' : ''}
+          lg:relative lg:w-72 lg:h-full
+          bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden
+        `}>
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <History className="w-4 h-4" /> Query History
+            </h3>
+            <button className="lg:hidden p-1 text-slate-400 hover:text-slate-600" onClick={() => setShowHistory(false)}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {historyList.length === 0 ? (
+              <div className="p-6 text-center">
+                <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">No queries yet</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {historyList.map((item, i) => (
+                  <button
+                    key={item.id || i}
+                    onClick={() => loadHistoryItem(item)}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                  >
+                    <p className="text-sm text-slate-700 truncate">{item.question || item.query}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{formatDateTime(item.created_at)}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {/* Chat header */}
+        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              className="lg:hidden p-1.5 text-slate-500 hover:bg-slate-100 rounded"
+              onClick={() => setShowHistory(true)}
+            >
+              <History className="w-4 h-4" />
+            </button>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">AI Tax & Compliance Assistant</h2>
+              <p className="text-xs text-slate-400">Ask questions about tax law, compliance, or client matters</p>
+            </div>
+          </div>
+          <select
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          >
+            <option value="">General Query</option>
+            {clientList.map((c) => (
+              <option key={c.id} value={c.id}>{c.firm_name || c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {conversation.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+                <Bot className="w-8 h-8 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-700">How can I help you?</h3>
+              <p className="text-sm text-slate-400 mt-1 max-w-md">
+                Ask about income tax provisions, compliance deadlines, TDS rates, GST rules, or anything related to your clients.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-lg">
+                {[
+                  'What is the due date for ITR filing for companies?',
+                  'Explain Section 44AD presumptive taxation',
+                  'What are the TDS rates for professional fees?',
+                  'How to compute HRA exemption for metro cities?',
+                ].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => { setQuestion(q); inputRef.current?.focus(); }}
+                    className="text-left p-3 bg-slate-50 hover:bg-blue-50 rounded-lg text-xs text-slate-600 hover:text-blue-700 transition-colors border border-slate-200"
+                  >
+                    <ChevronRight className="w-3 h-3 inline mr-1" />{q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {conversation.map((msg, i) => (
+            <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+              {msg.role === 'assistant' && (
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-blue-600" />
+                </div>
+              )}
+              <div className={`max-w-[75%] ${msg.role === 'user' ? 'order-first' : ''}`}>
+                <div
+                  className={`px-4 py-3 rounded-2xl text-sm leading-relaxed
+                    ${msg.role === 'user'
+                      ? 'bg-blue-500 text-white rounded-br-md'
+                      : msg.isError
+                        ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-md'
+                        : 'bg-slate-100 text-slate-700 rounded-bl-md'
+                    }
+                  `}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+                {/* Sources */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {msg.sources.map((src, si) => (
+                      <span
+                        key={si}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full border border-amber-200"
+                      >
+                        <BookOpen className="w-3 h-3" />
+                        {typeof src === 'string' ? src : src.title || src.section || `Source ${si + 1}`}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-slate-400 mt-1">
+                  {new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              {msg.role === 'user' && (
+                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-slate-600" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {submitMutation.isPending && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="bg-slate-100 rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                <span className="text-sm text-slate-500">Thinking...</span>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input area */}
+        <div className="p-4 border-t border-slate-200 shrink-0">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Ask a question about tax, compliance, or your clients..."
+              className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm
+                focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              disabled={submitMutation.isPending}
+            />
+            <button
+              type="submit"
+              disabled={!question.trim() || submitMutation.isPending}
+              className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300
+                text-white rounded-xl flex items-center gap-2 text-sm font-medium shrink-0"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Send</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

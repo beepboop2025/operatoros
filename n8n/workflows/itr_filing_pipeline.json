@@ -1,0 +1,264 @@
+{
+  "name": "ITR Filing Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "itr-filing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "itr-filing"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://operatoros-api:8000/api/clients/{{ $json.body.client_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fetch-client",
+      "name": "Fetch Client Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://operatoros-api:8000/api/compute/tax",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ client_id: $('Webhook Trigger').item.json.body.client_id, assessment_year: $('Webhook Trigger').item.json.body.assessment_year, regime: 'old' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "compute-old-regime",
+      "name": "Compute Tax (Old Regime)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 180],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://operatoros-api:8000/api/compute/tax",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ client_id: $('Webhook Trigger').item.json.body.client_id, assessment_year: $('Webhook Trigger').item.json.body.assessment_year, regime: 'new' }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "compute-new-regime",
+      "name": "Compute Tax (New Regime)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 420],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const client = $('Fetch Client Details').first().json;\nconst oldRegime = $('Compute Tax (Old Regime)').first().json;\nconst newRegime = $('Compute Tax (New Regime)').first().json;\nconst ay = $('Webhook Trigger').first().json.body.assessment_year;\n\nconst formatCurrency = (v) => {\n  const num = Number(v) || 0;\n  return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\n};\n\nconst oldTax = Number(oldRegime.tax_liability) || 0;\nconst newTax = Number(newRegime.tax_liability) || 0;\nconst savings = Math.abs(oldTax - newTax);\nconst recommended = oldTax <= newTax ? 'Old Regime' : 'New Regime (Section 115BAC)';\n\nconst html = `\n<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px;\">\n  <h1 style=\"color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 12px;\">Tax Computation — AY ${ay}</h1>\n  <p>Dear <strong>${client.firm_name || client.contact_person}</strong>,</p>\n  <p>Please find below the tax computation under both regimes for your review:</p>\n\n  <table style=\"width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #d1d5db;\">\n    <thead>\n      <tr style=\"background: #1e40af; color: white;\">\n        <th style=\"padding: 12px; text-align: left;\">Particulars</th>\n        <th style=\"padding: 12px; text-align: right;\">Old Regime</th>\n        <th style=\"padding: 12px; text-align: right;\">New Regime (115BAC)</th>\n      </tr>\n    </thead>\n    <tbody>\n      <tr style=\"background: #f9fafb;\">\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb;\">Gross Total Income</td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;\">${formatCurrency(oldRegime.gross_income)}</td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;\">${formatCurrency(newRegime.gross_income)}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb;\">Total Deductions</td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;\">${formatCurrency(oldRegime.computation_json?.total_deductions)}</td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;\">${formatCurrency(newRegime.computation_json?.total_deductions)}</td>\n      </tr>\n      <tr style=\"background: #f9fafb;\">\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb;\">Taxable Income</td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;\">${formatCurrency(oldRegime.computation_json?.taxable_income)}</td>\n        <td style=\"padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;\">${formatCurrency(newRegime.computation_json?.taxable_income)}</td>\n      </tr>\n      <tr style=\"background: #fef2f2; font-weight: 600;\">\n        <td style=\"padding: 10px; border-bottom: 2px solid #dc2626;\">Tax Liability</td>\n        <td style=\"padding: 10px; border-bottom: 2px solid #dc2626; text-align: right;\">${formatCurrency(oldTax)}</td>\n        <td style=\"padding: 10px; border-bottom: 2px solid #dc2626; text-align: right;\">${formatCurrency(newTax)}</td>\n      </tr>\n    </tbody>\n  </table>\n\n  <div style=\"background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin: 20px 0;\">\n    <p style=\"margin: 0; font-weight: 600; color: #065f46;\">Recommendation: ${recommended}</p>\n    <p style=\"margin: 4px 0 0; color: #065f46;\">Potential savings: ${formatCurrency(savings)}</p>\n  </div>\n\n  <p>Please review the above and confirm which regime you wish to opt for. We will proceed with ITR filing upon your confirmation.</p>\n  <p style=\"color: #6b7280; font-size: 12px; margin-top: 24px;\">Generated by OperatorOS — AuditMind</p>\n</div>\n`;\n\nreturn [{\n  json: {\n    client_email: client.email,\n    client_name: client.firm_name || client.contact_person,\n    assessment_year: ay,\n    html_body: html,\n    old_regime_tax: oldTax,\n    new_regime_tax: newTax,\n    recommended_regime: recommended,\n    savings: savings,\n    old_computation_id: oldRegime.id,\n    new_computation_id: newRegime.id\n  }\n}];"
+      },
+      "id": "format-comparison",
+      "name": "Format Tax Comparison HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'noreply@operatoros.in' }}",
+        "toEmail": "={{ $json.client_email }}",
+        "subject": "=Tax Computation — AY {{ $json.assessment_year }} — Review Required",
+        "emailType": "html",
+        "html": "={{ $json.html_body }}",
+        "options": {}
+      },
+      "id": "send-comparison-email",
+      "name": "Send Comparison to Client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1260, 300],
+      "credentials": {
+        "smtp": {
+          "id": "operatoros-smtp",
+          "name": "OperatorOS SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://operatoros-api:8000/api/compliance/task-by-client/{{ $('Webhook Trigger').item.json.body.client_id }}/itr_filing/{{ $('Webhook Trigger').item.json.body.assessment_year }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'in_progress' }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "update-compliance-status",
+      "name": "Update Compliance Task Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1500, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', message: 'Tax computation completed and sent to client for review', client_id: $('Webhook Trigger').item.json.body.client_id, assessment_year: $('Webhook Trigger').item.json.body.assessment_year, old_regime_tax: $('Format Tax Comparison HTML').item.json.old_regime_tax, new_regime_tax: $('Format Tax Comparison HTML').item.json.new_regime_tax, recommended: $('Format Tax Comparison HTML').item.json.recommended_regime }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1740, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Client Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Client Details": {
+      "main": [
+        [
+          {
+            "node": "Compute Tax (Old Regime)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Compute Tax (New Regime)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Tax (Old Regime)": {
+      "main": [
+        [
+          {
+            "node": "Format Tax Comparison HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compute Tax (New Regime)": {
+      "main": [
+        [
+          {
+            "node": "Format Tax Comparison HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Tax Comparison HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Comparison to Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Comparison to Client": {
+      "main": [
+        [
+          {
+            "node": "Update Compliance Task Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Compliance Task Status": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "itr"
+    },
+    {
+      "name": "tax"
+    },
+    {
+      "name": "filing"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

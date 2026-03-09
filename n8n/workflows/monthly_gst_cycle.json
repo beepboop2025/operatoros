@@ -1,0 +1,304 @@
+{
+  "name": "Monthly GST Compliance Cycle",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Monthly Cron (1st at 9 AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://operatoros-api:8000/api/clients?is_active=true&limit=500",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "get-active-clients",
+      "name": "Get Active Clients",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-clients",
+      "name": "Loop Over Clients",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "gst-check",
+              "leftValue": "={{ $json.gstin }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-gst-registration",
+      "name": "Has GST Registration?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://operatoros-api:8000/api/compliance?client_id={{ $json.id }}&task_type=gst_return&status=pending",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "get-gst-tasks",
+      "name": "Get Upcoming GST Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'noreply@operatoros.in' }}",
+        "toEmail": "={{ $('Loop Over Clients').item.json.email }}",
+        "subject": "=GSTR-1 Filing Reminder — Due {{ $now.plus({ days: 10 }).toFormat('dd MMM yyyy') }}",
+        "emailType": "html",
+        "html": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;\">\n  <h2 style=\"color: #dc2626;\">GSTR-1 Filing Reminder</h2>\n  <p>Dear <strong>{{ $('Loop Over Clients').item.json.firm_name }}</strong>,</p>\n  <p>This is a reminder that your <strong>GSTR-1 (Outward Supplies)</strong> for the current month is due on the <strong>11th of this month</strong>.</p>\n  <table style=\"width: 100%; border-collapse: collapse; margin: 16px 0;\">\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">GSTIN</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Loop Over Clients').item.json.gstin }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Return</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">GSTR-1</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Due Date</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">11th of this month</td></tr>\n  </table>\n  <p>Please ensure all outward supply invoices are uploaded and reconciled before filing.</p>\n  <p style=\"color: #6b7280; font-size: 12px; margin-top: 24px;\">Automated reminder from OperatorOS.</p>\n</div>",
+        "options": {}
+      },
+      "id": "send-gstr1-reminder",
+      "name": "Send GSTR-1 Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1440, 100],
+      "credentials": {
+        "smtp": {
+          "id": "operatoros-smtp",
+          "name": "OperatorOS SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'noreply@operatoros.in' }}",
+        "toEmail": "={{ $('Loop Over Clients').item.json.email }}",
+        "subject": "=GSTR-3B Filing Reminder — Due {{ $now.plus({ days: 19 }).toFormat('dd MMM yyyy') }}",
+        "emailType": "html",
+        "html": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;\">\n  <h2 style=\"color: #dc2626;\">GSTR-3B Filing Reminder</h2>\n  <p>Dear <strong>{{ $('Loop Over Clients').item.json.firm_name }}</strong>,</p>\n  <p>This is a reminder that your <strong>GSTR-3B (Summary Return)</strong> for the current month is due on the <strong>20th of this month</strong>.</p>\n  <table style=\"width: 100%; border-collapse: collapse; margin: 16px 0;\">\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">GSTIN</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Loop Over Clients').item.json.gstin }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Return</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">GSTR-3B</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Due Date</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">20th of this month</td></tr>\n  </table>\n  <p>Please ensure ITC reconciliation with GSTR-2B is completed before filing.</p>\n  <p style=\"color: #6b7280; font-size: 12px; margin-top: 24px;\">Automated reminder from OperatorOS.</p>\n</div>",
+        "options": {}
+      },
+      "id": "send-gstr3b-reminder",
+      "name": "Send GSTR-3B Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1440, 300],
+      "credentials": {
+        "smtp": {
+          "id": "operatoros-smtp",
+          "name": "OperatorOS SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://operatoros-api:8000/api/compliance/{{ $('Get Upcoming GST Tasks').item.json[0].id || '' }}/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ reminder_sent: true }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "update-task-status",
+      "name": "Update Task — Reminder Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "no-gst-noop",
+      "name": "No GST — Skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1200, 440]
+    }
+  ],
+  "connections": {
+    "Monthly Cron (1st at 9 AM)": {
+      "main": [
+        [
+          {
+            "node": "Get Active Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Clients": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Clients": {
+      "main": [
+        [
+          {
+            "node": "Has GST Registration?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+        ]
+      ]
+    },
+    "Has GST Registration?": {
+      "main": [
+        [
+          {
+            "node": "Get Upcoming GST Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No GST — Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upcoming GST Tasks": {
+      "main": [
+        [
+          {
+            "node": "Send GSTR-1 Reminder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send GSTR-3B Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send GSTR-1 Reminder": {
+      "main": [
+        [
+          {
+            "node": "Update Task — Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Task — Reminder Sent": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No GST — Skip": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "gst"
+    },
+    {
+      "name": "compliance"
+    },
+    {
+      "name": "monthly"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

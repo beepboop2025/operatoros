@@ -1,0 +1,240 @@
+{
+  "name": "Notice Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notice-response",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "notice-response"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://operatoros-api:8000/api/notices/{{ $json.body.notice_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fetch-notice",
+      "name": "Fetch Notice Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://operatoros-api:8000/api/clients/{{ $('Webhook Trigger').item.json.body.client_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fetch-client",
+      "name": "Fetch Client for Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 500],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://operatoros-api:8000/api/draft/notice-response",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ notice_id: $('Webhook Trigger').item.json.body.notice_id, client_id: $('Webhook Trigger').item.json.body.client_id, notice_type: $('Fetch Notice Details').item.json.notice_type, notice_date: $('Fetch Notice Details').item.json.notice_date, response_deadline: $('Fetch Notice Details').item.json.response_deadline, summary: $('Fetch Notice Details').item.json.summary, client_name: $('Fetch Client for Context').item.json.firm_name, pan: $('Fetch Client for Context').item.json.pan, gstin: $('Fetch Client for Context').item.json.gstin }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "generate-draft-response",
+      "name": "Generate Draft Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'noreply@operatoros.in' }}",
+        "toEmail": "={{ $('Fetch Notice Details').item.json.assignee?.email || $env.CA_DEFAULT_EMAIL || 'team@operatoros.in' }}",
+        "subject": "=[Action Required] Draft Response Ready — {{ $('Fetch Notice Details').item.json.notice_type }} — {{ $('Fetch Client for Context').item.json.firm_name }}",
+        "emailType": "html",
+        "html": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;\">\n  <h2 style=\"color: #dc2626;\">Notice Response — Review Required</h2>\n  <p>A draft response has been generated for the following notice and requires your review:</p>\n  <table style=\"width: 100%; border-collapse: collapse; margin: 16px 0;\">\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600; width: 180px;\">Client</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Fetch Client for Context').item.json.firm_name }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">PAN</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Fetch Client for Context').item.json.pan }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Notice Type</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Fetch Notice Details').item.json.notice_type }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Notice Date</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Fetch Notice Details').item.json.notice_date }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Response Deadline</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; color: #dc2626; font-weight: 600;\">{{ $('Fetch Notice Details').item.json.response_deadline || 'Not specified' }}</td></tr>\n  </table>\n  <h3 style=\"color: #374151; margin-top: 24px;\">Notice Summary</h3>\n  <div style=\"background: #f9fafb; padding: 16px; border-radius: 6px; margin-bottom: 16px;\">{{ $('Fetch Notice Details').item.json.summary || 'No summary available' }}</div>\n  <h3 style=\"color: #374151;\">Draft Response</h3>\n  <div style=\"background: #fffbeb; padding: 16px; border-radius: 6px; border-left: 4px solid #f59e0b;\">{{ $('Generate Draft Response').item.json.draft || $('Generate Draft Response').item.json.response_draft || 'Draft generation pending' }}</div>\n  <p style=\"margin-top: 20px;\">Please review, edit as necessary, and file the response before the deadline.</p>\n  <p style=\"color: #6b7280; font-size: 12px; margin-top: 24px;\">Generated by OperatorOS — AuditMind</p>\n</div>",
+        "options": {}
+      },
+      "id": "send-draft-to-ca",
+      "name": "Send Draft to Assigned CA",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1080, 300],
+      "credentials": {
+        "smtp": {
+          "id": "operatoros-smtp",
+          "name": "OperatorOS SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://operatoros-api:8000/api/notices/{{ $('Webhook Trigger').item.json.body.notice_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ status: 'response_drafted' }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "update-notice-status",
+      "name": "Update Notice Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', message: 'Draft response generated and sent to assigned CA for review', notice_id: $('Webhook Trigger').item.json.body.notice_id, notice_type: $('Fetch Notice Details').item.json.notice_type, response_deadline: $('Fetch Notice Details').item.json.response_deadline, draft_sent_to: $('Fetch Notice Details').item.json.assignee?.email || 'team@operatoros.in' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1600, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Notice Details",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Client for Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Notice Details": {
+      "main": [
+        [
+          {
+            "node": "Generate Draft Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Client for Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Draft Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Draft Response": {
+      "main": [
+        [
+          {
+            "node": "Send Draft to Assigned CA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Draft to Assigned CA": {
+      "main": [
+        [
+          {
+            "node": "Update Notice Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Notice Status": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "notice"
+    },
+    {
+      "name": "compliance"
+    },
+    {
+      "name": "response"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}

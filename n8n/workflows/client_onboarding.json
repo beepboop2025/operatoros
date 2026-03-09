@@ -1,0 +1,217 @@
+{
+  "name": "Client Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "client-onboarding",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "client-onboarding"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://operatoros-api:8000/api/clients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ firm_name: $json.body.client_name, contact_person: $json.body.client_name, email: $json.body.email, pan: $json.body.pan, gstin: $json.body.gstin || null, entity_type: $json.body.entity_type || 'individual' }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "create-client",
+      "name": "Create Client",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://operatoros-api:8000/api/compliance/calendar/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ entity_type: $('Webhook Trigger').item.json.body.entity_type || 'individual', gstin: $('Webhook Trigger').item.json.body.gstin || null }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "generate-compliance-calendar",
+      "name": "Generate Compliance Calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "operatoros-api-key",
+          "name": "OperatorOS API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.SMTP_FROM || 'noreply@operatoros.in' }}",
+        "toEmail": "={{ $('Webhook Trigger').item.json.body.email }}",
+        "subject": "=Welcome to OperatorOS — {{ $('Webhook Trigger').item.json.body.client_name }}",
+        "emailType": "html",
+        "html": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;\">\n  <h1 style=\"color: #1e40af; margin-bottom: 16px;\">Welcome to OperatorOS</h1>\n  <p>Dear <strong>{{ $('Webhook Trigger').item.json.body.client_name }}</strong>,</p>\n  <p>Your account has been successfully created on our compliance management platform. Here are your details:</p>\n  <table style=\"width: 100%; border-collapse: collapse; margin: 16px 0;\">\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">PAN</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Webhook Trigger').item.json.body.pan }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">GSTIN</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Webhook Trigger').item.json.body.gstin || 'N/A' }}</td></tr>\n    <tr><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;\">Entity Type</td><td style=\"padding: 8px; border-bottom: 1px solid #e5e7eb;\">{{ $('Webhook Trigger').item.json.body.entity_type || 'Individual' }}</td></tr>\n  </table>\n  <p>Your compliance calendar has been generated. We will send you timely reminders for all upcoming deadlines.</p>\n  <p style=\"color: #6b7280; font-size: 12px; margin-top: 24px;\">This is an automated message from OperatorOS.</p>\n</div>",
+        "options": {}
+      },
+      "id": "send-welcome-email",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [960, 300],
+      "credentials": {
+        "smtp": {
+          "id": "operatoros-smtp",
+          "name": "OperatorOS SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status",
+              "name": "status",
+              "value": "success",
+              "type": "string"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=Client {{ $('Webhook Trigger').item.json.body.client_name }} (PAN: {{ $('Webhook Trigger').item.json.body.pan }}) onboarded successfully. Welcome email sent to {{ $('Webhook Trigger').item.json.body.email }}. Compliance calendar generated.",
+              "type": "string"
+            },
+            {
+              "id": "client_id",
+              "name": "client_id",
+              "value": "={{ $('Create Client').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "format-summary",
+      "name": "Format Summary",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: $json.status, message: $json.message, client_id: $json.client_id, timestamp: $json.timestamp }) }}",
+        "options": {
+          "responseCode": 201
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1440, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Client": {
+      "main": [
+        [
+          {
+            "node": "Generate Compliance Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Compliance Calendar": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Format Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Summary": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "client"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1"
+}
