@@ -61,15 +61,15 @@ interface NumInputProps {
 function NumInput({ label, value, onChange, placeholder, className = '' }: NumInputProps) {
   return (
     <div className={className}>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-stone-600 mb-1">{label}</label>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{'\u20B9'}</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">{'\u20B9'}</span>
         <input
           type="number"
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
           placeholder={placeholder || '0'}
-          className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+          className="w-full pl-7 pr-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
         />
       </div>
     </div>
@@ -92,11 +92,11 @@ interface SelectInputProps {
 function SelectInput({ label, value, onChange, options, className = '' }: SelectInputProps) {
   return (
     <div className={className}>
-      <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-stone-600 mb-1">{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
       >
         {options.map((o) => {
           const optValue = typeof o === 'string' ? o : String(o.value);
@@ -120,9 +120,9 @@ interface ResultCardProps {
 
 function ResultCard({ title, children, className = '' }: ResultCardProps) {
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 overflow-hidden ${className}`}>
-      <div className="px-5 py-3 bg-slate-50 border-b border-slate-200">
-        <h4 className="font-semibold text-slate-700 text-sm">{title}</h4>
+    <div className={`bg-white rounded-xl border border-stone-200 overflow-hidden ${className}`}>
+      <div className="px-5 py-3 bg-stone-50 border-b border-stone-200">
+        <h4 className="font-semibold text-stone-700 text-sm">{title}</h4>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -140,8 +140,8 @@ interface ResultRowProps {
 function ResultRow({ label, value, bold, highlight, indent }: ResultRowProps) {
   return (
     <div className={`flex justify-between py-1.5 ${bold ? 'font-semibold' : ''} ${highlight ? 'text-blue-700 bg-blue-50 -mx-2 px-2 rounded' : ''} ${indent ? 'pl-4' : ''}`}>
-      <span className={`text-sm ${highlight ? 'text-blue-700' : bold ? 'text-slate-800' : 'text-slate-600'}`}>{label}</span>
-      <span className={`text-sm font-mono ${highlight ? 'text-blue-700' : bold ? 'text-slate-800' : 'text-slate-700'}`}>{value}</span>
+      <span className={`text-sm ${highlight ? 'text-blue-700' : bold ? 'text-stone-800' : 'text-stone-600'}`}>{label}</span>
+      <span className={`text-sm font-mono ${highlight ? 'text-blue-700' : bold ? 'text-stone-800' : 'text-stone-700'}`}>{value}</span>
     </div>
   );
 }
@@ -219,13 +219,13 @@ function IncomeTaxTab() {
       </div>
 
       {/* Deductions section */}
-      <div className="border border-slate-200 rounded-xl overflow-hidden">
+      <div className="border border-stone-200 rounded-xl overflow-hidden">
         <button
           onClick={() => setShowDeductions(!showDeductions)}
-          className="w-full flex items-center justify-between px-5 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
+          className="w-full flex items-center justify-between px-5 py-3 bg-stone-50 hover:bg-stone-100 transition-colors"
         >
-          <span className="text-sm font-semibold text-slate-700">Deductions</span>
-          {showDeductions ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+          <span className="text-sm font-semibold text-stone-700">Deductions</span>
+          {showDeductions ? <ChevronUp className="w-4 h-4 text-stone-500" /> : <ChevronDown className="w-4 h-4 text-stone-500" />}
         </button>
         {showDeductions && (
           <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,14 +246,14 @@ function IncomeTaxTab() {
       <button
         onClick={handleCalculate}
         disabled={mutation.isPending}
-        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium rounded-lg flex items-center gap-2"
+        className="px-6 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white font-medium rounded-xl flex items-center gap-2"
       >
         {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
         Calculate Tax
       </button>
 
       {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed. Please check your inputs.'}
         </div>
       )}
@@ -262,17 +262,17 @@ function IncomeTaxTab() {
       {result && (
         <div className="space-y-4" id="tax-result">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800">Tax Computation Result</h3>
+            <h3 className="text-lg font-bold text-stone-800">Tax Computation Result</h3>
             <button
               onClick={() => window.print()}
-              className="no-print inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"
+              className="no-print inline-flex items-center gap-2 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100 rounded-xl border border-stone-200"
             >
               <Printer className="w-4 h-4" /> Print
             </button>
           </div>
 
           {result.recommended_regime && (
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl">
               <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
               <p className="text-sm text-green-700">
                 <strong>Recommended:</strong> {result.recommended_regime === 'old' ? 'Old Regime' : 'New Regime'} saves you{' '}
@@ -289,15 +289,15 @@ function IncomeTaxTab() {
                   <ResultRow label="Gross Total Income" value={formatCurrency(result.old_regime.gross_total_income)} />
                   <ResultRow label="Less: Deductions" value={formatCurrency(result.old_regime.total_deductions)} />
                   <ResultRow label="Taxable Income" value={formatCurrency(result.old_regime.taxable_income)} bold />
-                  <div className="border-t border-slate-100 my-2" />
+                  <div className="border-t border-stone-100 my-2" />
                   <ResultRow label="Tax on Income" value={formatCurrency(result.old_regime.tax_on_income)} />
                   {result.old_regime.surcharge > 0 && <ResultRow label="Surcharge" value={formatCurrency(result.old_regime.surcharge)} />}
                   <ResultRow label="Health & Education Cess (4%)" value={formatCurrency(result.old_regime.cess)} />
-                  <div className="border-t border-slate-200 my-2" />
+                  <div className="border-t border-stone-200 my-2" />
                   <ResultRow label="Total Tax Payable" value={formatCurrency(result.old_regime.total_tax)} bold highlight />
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">Not computed</p>
+                <p className="text-sm text-stone-400">Not computed</p>
               )}
             </ResultCard>
 
@@ -308,39 +308,39 @@ function IncomeTaxTab() {
                   <ResultRow label="Gross Total Income" value={formatCurrency(result.new_regime.gross_total_income)} />
                   <ResultRow label="Less: Deductions" value={formatCurrency(result.new_regime.total_deductions)} />
                   <ResultRow label="Taxable Income" value={formatCurrency(result.new_regime.taxable_income)} bold />
-                  <div className="border-t border-slate-100 my-2" />
+                  <div className="border-t border-stone-100 my-2" />
                   <ResultRow label="Tax on Income" value={formatCurrency(result.new_regime.tax_on_income)} />
                   {result.new_regime.surcharge > 0 && <ResultRow label="Surcharge" value={formatCurrency(result.new_regime.surcharge)} />}
                   <ResultRow label="Health & Education Cess (4%)" value={formatCurrency(result.new_regime.cess)} />
-                  <div className="border-t border-slate-200 my-2" />
+                  <div className="border-t border-stone-200 my-2" />
                   <ResultRow label="Total Tax Payable" value={formatCurrency(result.new_regime.total_tax)} bold highlight />
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">Not computed</p>
+                <p className="text-sm text-stone-400">Not computed</p>
               )}
             </ResultCard>
           </div>
 
           {/* Detailed working (expandable) */}
           {(result.old_regime?.slab_breakdown || result.new_regime?.slab_breakdown) && (
-            <details className="bg-white border border-slate-200 rounded-xl">
-              <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            <details className="bg-white border border-stone-200 rounded-xl">
+              <summary className="px-5 py-3 cursor-pointer text-sm font-semibold text-stone-700 hover:bg-stone-50">
                 View Detailed Computation Working
               </summary>
-              <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-200">
+              <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-stone-200">
                 {result.old_regime?.slab_breakdown && (
                   <div>
-                    <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">Old Regime Slabs</h5>
+                    <h5 className="text-xs font-semibold text-stone-500 uppercase mb-2">Old Regime Slabs</h5>
                     {result.old_regime.slab_breakdown.map((slab, i) => (
-                      <ResultRow key={i} label={slab.slab || slab.range || ''} value={formatCurrency(slab.tax)} />
+                      <ResultRow key={`old-${slab.slab || slab.range || i}`} label={slab.slab || slab.range || ''} value={formatCurrency(slab.tax)} />
                     ))}
                   </div>
                 )}
                 {result.new_regime?.slab_breakdown && (
                   <div>
-                    <h5 className="text-xs font-semibold text-slate-500 uppercase mb-2">New Regime Slabs</h5>
+                    <h5 className="text-xs font-semibold text-stone-500 uppercase mb-2">New Regime Slabs</h5>
                     {result.new_regime.slab_breakdown.map((slab, i) => (
-                      <ResultRow key={i} label={slab.slab || slab.range || ''} value={formatCurrency(slab.tax)} />
+                      <ResultRow key={`new-${slab.slab || slab.range || i}`} label={slab.slab || slab.range || ''} value={formatCurrency(slab.tax)} />
                     ))}
                   </div>
                 )}
@@ -390,7 +390,7 @@ function TDSTab() {
         />
         <NumInput label="Payment Amount" value={form.amount || ''} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">PAN Available</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">PAN Available</label>
           <div className="flex items-center gap-4 h-[38px]">
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" checked={form.pan_available} onChange={() => setForm((f) => ({ ...f, pan_available: true }))} className="text-blue-500" /> Yes
@@ -405,14 +405,14 @@ function TDSTab() {
       <button
         onClick={() => mutation.mutate(form)}
         disabled={mutation.isPending || !form.amount}
-        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium rounded-lg flex items-center gap-2"
+        className="px-6 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white font-medium rounded-xl flex items-center gap-2"
       >
         {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
         Calculate TDS
       </button>
 
       {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
@@ -423,10 +423,10 @@ function TDSTab() {
             <ResultRow label="Section" value={mutation.data.section || '--'} />
             <ResultRow label="TDS Rate" value={`${mutation.data.rate || 0}%`} />
             <ResultRow label="Payment Amount" value={formatCurrency(mutation.data.amount || form.amount)} />
-            <div className="border-t border-slate-200 my-2" />
+            <div className="border-t border-stone-200 my-2" />
             <ResultRow label="TDS Amount" value={formatCurrency(mutation.data.tds_amount)} bold highlight />
             {mutation.data.notes && (
-              <div className="mt-3 p-3 bg-amber-50 rounded-lg text-xs text-amber-700">{mutation.data.notes}</div>
+              <div className="mt-3 p-3 bg-amber-50 rounded-xl text-xs text-amber-700">{mutation.data.notes}</div>
             )}
           </div>
         </ResultCard>
@@ -463,33 +463,33 @@ function GSTTab() {
           ]}
         />
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">HSN/SAC Code</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">HSN/SAC Code</label>
           <input
             type="text"
             value={form.hsn_sac}
             onChange={(e) => setForm((f) => ({ ...f, hsn_sac: e.target.value }))}
             placeholder="e.g. 9983"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Place of Origin (State)</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Place of Origin (State)</label>
           <input
             type="text"
             value={form.place_of_origin}
             onChange={(e) => setForm((f) => ({ ...f, place_of_origin: e.target.value }))}
             placeholder="e.g. Maharashtra"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Place of Supply (State)</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Place of Supply (State)</label>
           <input
             type="text"
             value={form.place_of_supply}
             onChange={(e) => setForm((f) => ({ ...f, place_of_supply: e.target.value }))}
             placeholder="e.g. Karnataka"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <NumInput label="Taxable Value" value={form.taxable_value || ''} onChange={(v) => setForm((f) => ({ ...f, taxable_value: v }))} />
@@ -504,14 +504,14 @@ function GSTTab() {
       <button
         onClick={() => mutation.mutate(form)}
         disabled={mutation.isPending || !form.taxable_value}
-        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium rounded-lg flex items-center gap-2"
+        className="px-6 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white font-medium rounded-xl flex items-center gap-2"
       >
         {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
         Calculate GST
       </button>
 
       {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
@@ -521,11 +521,11 @@ function GSTTab() {
           <div className="space-y-1">
             <ResultRow label="Taxable Value" value={formatCurrency(mutation.data.taxable_value || form.taxable_value)} />
             <ResultRow label="Supply Type" value={mutation.data.is_interstate ? 'Interstate (IGST)' : 'Intrastate (CGST + SGST)'} />
-            <div className="border-t border-slate-100 my-2" />
+            <div className="border-t border-stone-100 my-2" />
             {mutation.data.cgst != null && <ResultRow label={`CGST @ ${(mutation.data.cgst_rate || form.rate / 2)}%`} value={formatCurrency(mutation.data.cgst)} />}
             {mutation.data.sgst != null && <ResultRow label={`SGST @ ${(mutation.data.sgst_rate || form.rate / 2)}%`} value={formatCurrency(mutation.data.sgst)} />}
             {mutation.data.igst != null && <ResultRow label={`IGST @ ${(mutation.data.igst_rate || form.rate)}%`} value={formatCurrency(mutation.data.igst)} />}
-            <div className="border-t border-slate-200 my-2" />
+            <div className="border-t border-stone-200 my-2" />
             <ResultRow label="Total GST" value={formatCurrency(mutation.data.total_gst)} bold />
             <ResultRow label="Invoice Total" value={formatCurrency(mutation.data.total_amount || ((form.taxable_value) + (mutation.data.total_gst || 0)))} bold highlight />
           </div>
@@ -568,21 +568,21 @@ function CapitalGainsTab() {
           options={assetTypes}
         />
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Purchase Date</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Purchase Date</label>
           <input
             type="date"
             value={form.purchase_date}
             onChange={(e) => setForm((f) => ({ ...f, purchase_date: e.target.value }))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Sale Date</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Sale Date</label>
           <input
             type="date"
             value={form.sale_date}
             onChange={(e) => setForm((f) => ({ ...f, sale_date: e.target.value }))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <NumInput label="Purchase Price" value={form.purchase_price || ''} onChange={(v) => setForm((f) => ({ ...f, purchase_price: v }))} />
@@ -593,14 +593,14 @@ function CapitalGainsTab() {
       <button
         onClick={() => mutation.mutate(form)}
         disabled={mutation.isPending || !form.sale_price}
-        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium rounded-lg flex items-center gap-2"
+        className="px-6 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white font-medium rounded-xl flex items-center gap-2"
       >
         {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
         Calculate Capital Gains
       </button>
 
       {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
@@ -610,21 +610,21 @@ function CapitalGainsTab() {
           <div className="space-y-1">
             <ResultRow label="Gain Type" value={mutation.data.gain_type === 'ltcg' ? 'Long-Term Capital Gain' : 'Short-Term Capital Gain'} bold />
             <ResultRow label="Holding Period" value={mutation.data.holding_period || '--'} />
-            <div className="border-t border-slate-100 my-2" />
+            <div className="border-t border-stone-100 my-2" />
             <ResultRow label="Sale Consideration" value={formatCurrency(mutation.data.sale_price || form.sale_price)} />
             <ResultRow label="Cost of Acquisition" value={formatCurrency(mutation.data.purchase_price || form.purchase_price)} />
             {(mutation.data.indexed_cost ?? 0) > 0 && <ResultRow label="Indexed Cost of Acquisition" value={formatCurrency(mutation.data.indexed_cost)} />}
             {(mutation.data.improvement_cost ?? 0) > 0 && <ResultRow label="Cost of Improvement" value={formatCurrency(mutation.data.improvement_cost)} />}
-            <div className="border-t border-slate-200 my-2" />
+            <div className="border-t border-stone-200 my-2" />
             <ResultRow label="Capital Gain" value={formatCurrency(mutation.data.capital_gain)} bold />
             <ResultRow label="Tax Rate" value={`${mutation.data.tax_rate || 0}%`} />
             <ResultRow label="Tax Payable" value={formatCurrency(mutation.data.tax_amount)} bold highlight />
 
             {mutation.data.exemptions && mutation.data.exemptions.length > 0 && (
               <div className="mt-3">
-                <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Available Exemptions</p>
-                {mutation.data.exemptions.map((ex, i) => (
-                  <div key={i} className="text-xs text-slate-600 py-0.5">- {ex}</div>
+                <p className="text-xs font-semibold text-stone-500 uppercase mb-1">Available Exemptions</p>
+                {mutation.data.exemptions.map((ex) => (
+                  <div key={ex} className="text-xs text-stone-600 py-0.5">- {ex}</div>
                 ))}
               </div>
             )}
@@ -665,21 +665,21 @@ function InterestTab() {
         <NumInput label="Tax Liability" value={form.tax_liability || ''} onChange={(v) => setForm((f) => ({ ...f, tax_liability: v }))} />
         <NumInput label="Tax Paid (Advance Tax / TDS)" value={form.tax_paid || ''} onChange={(v) => setForm((f) => ({ ...f, tax_paid: v }))} />
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Due Date</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Due Date</label>
           <input
             type="date"
             value={form.due_date}
             onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Payment Date</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Payment Date</label>
           <input
             type="date"
             value={form.payment_date}
             onChange={(e) => setForm((f) => ({ ...f, payment_date: e.target.value }))}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2 border border-stone-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
       </div>
@@ -687,14 +687,14 @@ function InterestTab() {
       <button
         onClick={() => mutation.mutate(form)}
         disabled={mutation.isPending || !form.tax_liability}
-        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium rounded-lg flex items-center gap-2"
+        className="px-6 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white font-medium rounded-xl flex items-center gap-2"
       >
         {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
         Calculate Interest
       </button>
 
       {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
@@ -707,17 +707,17 @@ function InterestTab() {
             <ResultRow label="Shortfall" value={formatCurrency(mutation.data.shortfall)} />
             <ResultRow label="Number of Months" value={`${mutation.data.months || 0} months`} />
             <ResultRow label="Rate" value={`${mutation.data.rate || 1}% per month`} />
-            <div className="border-t border-slate-200 my-2" />
+            <div className="border-t border-stone-200 my-2" />
             <ResultRow label="Interest Amount" value={formatCurrency(mutation.data.interest_amount)} bold highlight />
 
             {mutation.data.month_wise_breakdown && mutation.data.month_wise_breakdown.length > 0 && (
               <details className="mt-3">
-                <summary className="text-xs font-semibold text-slate-500 cursor-pointer hover:text-slate-700">
+                <summary className="text-xs font-semibold text-stone-500 cursor-pointer hover:text-stone-700">
                   Month-wise Breakdown
                 </summary>
                 <div className="mt-2 space-y-0.5">
                   {mutation.data.month_wise_breakdown.map((m, i) => (
-                    <ResultRow key={i} label={m.month || m.period || ''} value={formatCurrency(m.interest)} indent />
+                    <ResultRow key={`month-${m.month || m.period || i}`} label={m.month || m.period || ''} value={formatCurrency(m.interest)} indent />
                   ))}
                 </div>
               </details>
@@ -749,7 +749,7 @@ function HRATab() {
         <NumInput label="HRA Received (Annual)" value={form.hra_received || ''} onChange={(v) => setForm((f) => ({ ...f, hra_received: v }))} />
         <NumInput label="Rent Paid (Annual)" value={form.rent_paid || ''} onChange={(v) => setForm((f) => ({ ...f, rent_paid: v }))} />
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Metro City</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Metro City</label>
           <div className="flex items-center gap-4 h-[38px]">
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" checked={form.is_metro} onChange={() => setForm((f) => ({ ...f, is_metro: true }))} className="text-blue-500" />
@@ -766,14 +766,14 @@ function HRATab() {
       <button
         onClick={() => mutation.mutate(form)}
         disabled={mutation.isPending || !form.basic_salary}
-        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-medium rounded-lg flex items-center gap-2"
+        className="px-6 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white font-medium rounded-xl flex items-center gap-2"
       >
         {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />}
         Calculate HRA Exemption
       </button>
 
       {mutation.isError && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
         </div>
       )}
@@ -781,7 +781,7 @@ function HRATab() {
       {mutation.data && (
         <ResultCard title="HRA Exemption Calculation">
           <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Least of the following is exempt:</p>
+            <p className="text-xs font-semibold text-stone-500 uppercase mb-2">Least of the following is exempt:</p>
             <ResultRow
               label="(a) Actual HRA Received"
               value={formatCurrency(mutation.data.actual_hra || form.hra_received)}
@@ -794,7 +794,7 @@ function HRATab() {
               label="(c) Rent Paid - 10% of (Basic + DA)"
               value={formatCurrency(mutation.data.rent_minus_10_percent)}
             />
-            <div className="border-t border-slate-200 my-2" />
+            <div className="border-t border-stone-200 my-2" />
             <ResultRow label="HRA Exemption (Least of above)" value={formatCurrency(mutation.data.exemption_amount)} bold highlight />
             <ResultRow label="Taxable HRA" value={formatCurrency(mutation.data.taxable_hra)} />
           </div>
@@ -822,22 +822,22 @@ export default function TaxComputer() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Tax Calculator</h1>
-        <p className="text-sm text-slate-500 mt-1">Compute taxes, TDS, GST, capital gains, interest, and HRA</p>
+        <h1 className="text-2xl font-bold text-stone-800">Tax Calculator</h1>
+        <p className="text-sm text-stone-500 mt-1">Compute taxes, TDS, GST, capital gains, interest, and HRA</p>
       </div>
 
       {/* Tab bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-1.5 flex flex-wrap gap-1">
+      <div className="bg-white rounded-xl border border-stone-200 p-1.5 flex flex-wrap gap-1">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors
                 ${activeTab === tab.id
                   ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  : 'text-stone-600 hover:bg-stone-100'
                 }`}
             >
               <Icon className="w-4 h-4" />
@@ -848,7 +848,7 @@ export default function TaxComputer() {
       </div>
 
       {/* Active tab content */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-stone-200 p-6">
         <ActiveComponent />
       </div>
     </div>

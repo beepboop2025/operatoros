@@ -95,7 +95,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         try:
             redis_conn = await self._get_redis()
-            key = f"rl:{category}:{user_key}"
+            key = f"rl:{category}:{request.method}:{user_key}"
             now = time.time()
             window_start = now - window_seconds
 

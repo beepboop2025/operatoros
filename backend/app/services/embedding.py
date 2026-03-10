@@ -192,7 +192,7 @@ class EmbeddingService:
 
     @staticmethod
     def _cache_key(text: str) -> str:
-        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         return f"emb:{settings.EMBEDDING_MODEL}:{digest}"
 
     async def _get_cached(self, key: str) -> Optional[List[float]]:

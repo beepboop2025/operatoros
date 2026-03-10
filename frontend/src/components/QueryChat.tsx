@@ -25,11 +25,17 @@ import {
 import { formatDateTime } from '../utils/format';
 
 interface ChatMessage {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   sources?: (string | QuerySource)[];
   isError?: boolean;
   timestamp: string;
+}
+
+let msgCounter = 0;
+function generateMsgId(): string {
+  return `msg-${Date.now()}-${++msgCounter}`;
 }
 
 export default function QueryChat() {
@@ -63,6 +69,7 @@ export default function QueryChat() {
       setConversation((prev) => [
         ...prev,
         {
+          id: generateMsgId(),
           role: 'assistant',
           content: data.answer || data.response || 'No response received.',
           sources: data.sources || data.citations || [],
@@ -76,6 +83,7 @@ export default function QueryChat() {
       setConversation((prev) => [
         ...prev,
         {
+          id: generateMsgId(),
           role: 'assistant',
           content: `Error: ${axiosErr.response?.data?.detail || 'Failed to process query. Please try again.'}`,
           isError: true,
@@ -97,6 +105,7 @@ export default function QueryChat() {
     setConversation((prev) => [
       ...prev,
       {
+        id: generateMsgId(),
         role: 'user',
         content: q,
         timestamp: new Date().toISOString(),
@@ -112,11 +121,13 @@ export default function QueryChat() {
   const loadHistoryItem = (item: QueryItem) => {
     setConversation([
       {
+        id: generateMsgId(),
         role: 'user',
         content: item.question || item.query || '',
         timestamp: item.created_at || new Date().toISOString(),
       },
       {
+        id: generateMsgId(),
         role: 'assistant',
         content: item.answer || item.response || 'No response',
         sources: item.sources || item.citations || [],
@@ -134,37 +145,37 @@ export default function QueryChat() {
         lg:w-72 shrink-0
       `}>
         {showHistory && (
-          <div className="fixed inset-0 bg-black/50 lg:hidden" onClick={() => setShowHistory(false)} />
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm lg:hidden" onClick={() => setShowHistory(false)} />
         )}
         <div className={`
           ${showHistory ? 'fixed right-0 top-0 h-full w-80 z-50' : ''}
           lg:relative lg:w-72 lg:h-full
-          bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden
+          bg-white rounded-xl border border-stone-200 flex flex-col overflow-hidden
         `}>
-          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <div className="px-4 py-3 border-b border-stone-200 flex items-center justify-between">
+            <h3 className="text-[13px] font-semibold text-stone-700 flex items-center gap-2">
               <History className="w-4 h-4" /> Query History
             </h3>
-            <button className="lg:hidden p-1 text-slate-400 hover:text-slate-600" onClick={() => setShowHistory(false)}>
+            <button className="lg:hidden p-1 text-stone-400 hover:text-stone-600" onClick={() => setShowHistory(false)}>
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {historyList.length === 0 ? (
               <div className="p-6 text-center">
-                <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-400">No queries yet</p>
+                <MessageSquare className="w-8 h-8 text-stone-300 mx-auto mb-2" />
+                <p className="text-xs text-stone-400">No queries yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
-                {historyList.map((item, i) => (
+              <div className="divide-y divide-stone-100">
+                {historyList.map((item) => (
                   <button
-                    key={item.id || i}
+                    key={item.id}
                     onClick={() => loadHistoryItem(item)}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                    className="w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors"
                   >
-                    <p className="text-sm text-slate-700 truncate">{item.question || item.query}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{formatDateTime(item.created_at)}</p>
+                    <p className="text-sm text-stone-700 truncate">{item.question || item.query}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">{formatDateTime(item.created_at)}</p>
                   </button>
                 ))}
               </div>
@@ -174,25 +185,25 @@ export default function QueryChat() {
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="flex-1 flex flex-col card overflow-hidden">
         {/* Chat header */}
-        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between shrink-0">
+        <div className="px-5 py-3 border-b border-stone-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <button
-              className="lg:hidden p-1.5 text-slate-500 hover:bg-slate-100 rounded"
+              className="lg:hidden p-1.5 text-stone-500 hover:bg-stone-100 rounded"
               onClick={() => setShowHistory(true)}
             >
               <History className="w-4 h-4" />
             </button>
             <div>
-              <h2 className="text-sm font-semibold text-slate-800">AI Tax & Compliance Assistant</h2>
-              <p className="text-xs text-slate-400">Ask questions about tax law, compliance, or client matters</p>
+              <h2 className="text-[13px] font-semibold text-stone-800">AI Tax & Compliance Assistant</h2>
+              <p className="text-xs text-stone-400">Ask questions about tax law, compliance, or client matters</p>
             </div>
           </div>
           <select
             value={clientId}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => setClientId(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
           >
             <option value="">General Query</option>
             {clientList.map((c) => (
@@ -208,8 +219,8 @@ export default function QueryChat() {
               <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
                 <Bot className="w-8 h-8 text-blue-500" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-700">How can I help you?</h3>
-              <p className="text-sm text-slate-400 mt-1 max-w-md">
+              <h3 className="text-lg font-semibold text-stone-700">How can I help you?</h3>
+              <p className="text-sm text-stone-400 mt-1 max-w-md">
                 Ask about income tax provisions, compliance deadlines, TDS rates, GST rules, or anything related to your clients.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-lg">
@@ -222,7 +233,7 @@ export default function QueryChat() {
                   <button
                     key={q}
                     onClick={() => { setQuestion(q); inputRef.current?.focus(); }}
-                    className="text-left p-3 bg-slate-50 hover:bg-blue-50 rounded-lg text-xs text-slate-600 hover:text-blue-700 transition-colors border border-slate-200"
+                    className="text-left p-3 bg-stone-50 hover:bg-blue-50 rounded-xl text-xs text-stone-600 hover:text-blue-700 transition-colors border border-stone-200 hover:border-blue-200"
                   >
                     <ChevronRight className="w-3 h-3 inline mr-1" />{q}
                   </button>
@@ -231,10 +242,10 @@ export default function QueryChat() {
             </div>
           )}
 
-          {conversation.map((msg, i) => (
-            <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+          {conversation.map((msg) => (
+            <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
                   <Bot className="w-4 h-4 text-blue-600" />
                 </div>
               )}
@@ -242,36 +253,38 @@ export default function QueryChat() {
                 <div
                   className={`px-4 py-3 rounded-2xl text-sm leading-relaxed
                     ${msg.role === 'user'
-                      ? 'bg-blue-500 text-white rounded-br-md'
+                      ? 'gradient-brand text-white rounded-br-md shadow-sm'
                       : msg.isError
                         ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-md'
-                        : 'bg-slate-100 text-slate-700 rounded-bl-md'
+                        : 'bg-stone-100 text-stone-700 rounded-bl-md'
                     }
                   `}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                 </div>
-                {/* Sources */}
                 {msg.sources && msg.sources.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {msg.sources.map((src, si) => (
-                      <span
-                        key={si}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full border border-amber-200"
-                      >
-                        <BookOpen className="w-3 h-3" />
-                        {typeof src === 'string' ? src : src.title || src.section || `Source ${si + 1}`}
-                      </span>
-                    ))}
+                    {msg.sources.map((src, si) => {
+                      const label = typeof src === 'string' ? src : src.title || src.section || `Source ${si + 1}`;
+                      return (
+                        <span
+                          key={`${msg.id}-src-${label}-${si}`}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs rounded-full border border-amber-200"
+                        >
+                          <BookOpen className="w-3 h-3" />
+                          {label}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-stone-400 mt-1">
                   {new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
               {msg.role === 'user' && (
-                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-slate-600" />
+                <div className="w-8 h-8 bg-stone-200 rounded-lg flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-stone-600" />
                 </div>
               )}
             </div>
@@ -279,12 +292,12 @@ export default function QueryChat() {
 
           {submitMutation.isPending && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-blue-600" />
               </div>
-              <div className="bg-slate-100 rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
+              <div className="bg-stone-100 rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                <span className="text-sm text-slate-500">Thinking...</span>
+                <span className="text-sm text-stone-500">Thinking...</span>
               </div>
             </div>
           )}
@@ -293,7 +306,7 @@ export default function QueryChat() {
         </div>
 
         {/* Input area */}
-        <div className="p-4 border-t border-slate-200 shrink-0">
+        <div className="p-4 border-t border-stone-200 shrink-0">
           <form onSubmit={handleSubmit} className="flex gap-2">
             <input
               ref={inputRef}
@@ -301,15 +314,15 @@ export default function QueryChat() {
               value={question}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setQuestion(e.target.value)}
               placeholder="Ask a question about tax, compliance, or your clients..."
-              className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm
-                focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="flex-1 px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm
+                focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
               disabled={submitMutation.isPending}
             />
             <button
               type="submit"
               disabled={!question.trim() || submitMutation.isPending}
-              className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300
-                text-white rounded-xl flex items-center gap-2 text-sm font-medium shrink-0"
+              className="px-4 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-40
+                text-white rounded-xl flex items-center gap-2 text-sm font-medium shrink-0 shadow-sm transition-all"
             >
               <Send className="w-4 h-4" />
               <span className="hidden sm:inline">Send</span>

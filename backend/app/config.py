@@ -56,6 +56,31 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
 
+    @field_validator("SECRET_KEY", mode="after")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Reject the default placeholder key in non-development environments."""
+        if v == "change-me-to-random-64-char-string":
+            import os
+            env = os.getenv("ENVIRONMENT", "development")
+            if env != "development":
+                raise ValueError(
+                    "SECRET_KEY must be changed from the default value in production. "
+                    "Generate a secure key with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                )
+        return v
+
+    @field_validator("OPENROUTER_API_KEY", mode="after")
+    @classmethod
+    def validate_openrouter_key(cls, v: str) -> str:
+        """Warn if OpenRouter API key is empty."""
+        if not v:
+            import logging
+            logging.getLogger("operatoros.config").warning(
+                "OPENROUTER_API_KEY is empty — AI/LLM features will not work"
+            )
+        return v
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

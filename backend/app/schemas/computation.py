@@ -50,6 +50,19 @@ class IncomeTaxRequest(BaseModel):
         description="e.g. 2025-26",
     )
     gross_salary: Decimal = Field(Decimal("0"), ge=0)
+
+    @field_validator("assessment_year")
+    @classmethod
+    def validate_ay_year_pair(cls, v: str) -> str:
+        """Ensure the two-digit suffix is the next year (e.g. 2025-26, not 2025-30)."""
+        start_str, end_str = v.split("-")
+        start = int(start_str)
+        expected_end = (start + 1) % 100
+        if int(end_str) != expected_end:
+            raise ValueError(
+                f"Invalid assessment year: expected '{start_str}-{expected_end:02d}'"
+            )
+        return v
     income_hp: Decimal = Field(Decimal("0"), description="Income from house property")
     business_income: Decimal = Field(Decimal("0"), ge=0)
     capital_gains_lt: Decimal = Field(Decimal("0"), ge=0)
@@ -181,6 +194,18 @@ class InterestRequest(BaseModel):
     due_date: date
     payment_date: date
     assessment_year: str = Field(..., pattern=r"^\d{4}-\d{2}$")
+
+    @field_validator("assessment_year")
+    @classmethod
+    def validate_ay_year_pair(cls, v: str) -> str:
+        start_str, end_str = v.split("-")
+        start = int(start_str)
+        expected_end = (start + 1) % 100
+        if int(end_str) != expected_end:
+            raise ValueError(
+                f"Invalid assessment year: expected '{start_str}-{expected_end:02d}'"
+            )
+        return v
 
     @field_validator("payment_date")
     @classmethod

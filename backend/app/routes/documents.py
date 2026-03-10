@@ -77,11 +77,15 @@ async def upload_document(
     upload_dir = UPLOAD_DIR / str(client_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    file_ext = Path(file.filename or "upload").suffix
+    # Sanitize filename to prevent path traversal
+    safe_name = Path(file.filename or "upload").name
+    file_ext = Path(safe_name).suffix
     file_path = upload_dir / f"{doc_id}{file_ext}"
 
     content = await file.read()
-    file_path.write_bytes(content)
+    import aiofiles
+    async with aiofiles.open(file_path, "wb") as f:
+        await f.write(content)
 
     # Create database record
     document = Document(
@@ -180,8 +184,10 @@ async def search_documents(
             pass
 
     # Keyword-based fallback: search in summary field
+    # Escape LIKE wildcards to prevent unexpected pattern matching
+    safe_query = body.query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     query = query.where(
-        Document.summary.ilike(f"%{body.query}%")
+        Document.summary.ilike(f"%{safe_query}%", escape="\\")
     ).limit(body.limit)
 
     result = await db.execute(query)
@@ -230,8 +236,12 @@ async def delete_document(
         file_path = Path(document.file_url)
         if file_path.exists():
             file_path.unlink()
-    except OSError:
-        pass  # Non-critical: DB record removal is the priority
+    except OSError as exc:
+        import logging
+        logging.getLogger("operatoros.documents").warning(
+            "Failed to delete file %s for document %s: %s",
+            document.file_url, document.id, exc,
+        )
 
     await log_action(
         db,

@@ -1,17 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-slate-850: #172033;
+  /* ── Warm neutral palette ──────────────────────────────────── */
+  --color-surface: #fafaf9;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f5f5f4;
+  --color-border: #e7e5e4;
+  --color-border-light: #f0efed;
+
+  /* ── Sidebar / Dark surfaces ───────────────────────────────── */
+  --color-sidebar: #1c1917;
+  --color-sidebar-hover: #292524;
+  --color-sidebar-active: #3b82f6;
+  --color-sidebar-border: #2e2a27;
+
+  /* ── Brand ─────────────────────────────────────────────────── */
   --color-brand: #3b82f6;
   --color-brand-dark: #2563eb;
   --color-brand-light: #60a5fa;
+  --color-brand-subtle: #eff6ff;
+
+  /* ── Status ────────────────────────────────────────────────── */
   --color-success: #10b981;
+  --color-success-light: #ecfdf5;
   --color-warning: #f59e0b;
+  --color-warning-light: #fffbeb;
   --color-danger: #ef4444;
+  --color-danger-light: #fef2f2;
   --color-info: #06b6d4;
+  --color-info-light: #ecfeff;
+
+  /* ── Text ──────────────────────────────────────────────────── */
+  --color-text-primary: #1c1917;
+  --color-text-secondary: #57534e;
+  --color-text-muted: #a8a29e;
 }
 
-/* Scrollbar */
+/* ── Scrollbar ───────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -22,15 +47,24 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d6d3d1;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #a8a29e;
 }
 
-/* Smooth transitions for interactive elements */
+/* ── Base ────────────────────────────────────────────────────── */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #fafaf9;
+  color: #1c1917;
+}
+
+/* ── Smooth transitions ─────────────────────────────────────── */
 button,
 a,
 input,
@@ -39,34 +73,90 @@ textarea {
   transition: all 0.15s ease-in-out;
 }
 
-/* Focus ring */
+/* ── Focus ───────────────────────────────────────────────────── */
 *:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
-/* Body defaults */
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background: #f8fafc;
-}
-
-/* Skeleton loading animation */
+/* ── Animations ──────────────────────────────────────────────── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
-.skeleton {
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Print styles */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e7e5e4 25%, #f5f5f4 50%, #e7e5e4 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.35s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+/* ── Card system ─────────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(28, 25, 23, 0.06);
+}
+
+.card-elevated {
+  background: #ffffff;
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 4px 12px rgba(28, 25, 23, 0.02);
+}
+
+/* ── Gradient utilities ──────────────────────────────────────── */
+.gradient-brand {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.gradient-sidebar {
+  background: linear-gradient(180deg, #1c1917 0%, #0c0a09 100%);
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, #1c1917 0%, #292524 50%, #1c1917 100%);
+}
+
+/* ── Print styles ────────────────────────────────────────────── */
 @media print {
   .no-print {
     display: none !important;
@@ -86,8 +176,23 @@ body {
   }
 }
 
-/* Drag and drop overlay */
+/* ── Drag and drop ───────────────────────────────────────────── */
 .drop-zone-active {
   border-color: #3b82f6 !important;
   background-color: #eff6ff !important;
 }
+
+/* ── Input focus ring override (warmer) ──────────────────────── */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* ── Stat card gradient backgrounds ──────────────────────────── */
+.stat-blue { background: linear-gradient(135deg, #eff6ff, #dbeafe); }
+.stat-green { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
+.stat-red { background: linear-gradient(135deg, #fef2f2, #fee2e2); }
+.stat-purple { background: linear-gradient(135deg, #faf5ff, #f3e8ff); }
+.stat-amber { background: linear-gradient(135deg, #fffbeb, #fef3c7); }

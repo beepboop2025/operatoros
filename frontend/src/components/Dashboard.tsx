@@ -21,37 +21,30 @@ import {
   ArrowRight,
   FileText,
   CheckCircle2,
-  XCircle,
   TrendingUp,
   LucideIcon,
 } from 'lucide-react';
-import { formatDate, formatCurrency } from '../utils/format';
+import { formatDate } from '../utils/format';
 
 interface StatCardProps {
   title: string;
   value: number | string | undefined;
   icon: LucideIcon;
-  color: string;
+  gradient: string;
+  iconColor: string;
   sub?: string;
 }
 
-function StatCard({ title, value, icon: Icon, color, sub }: StatCardProps) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    red: 'bg-red-50 text-red-600',
-    purple: 'bg-purple-50 text-purple-600',
-    amber: 'bg-amber-50 text-amber-600',
-  };
+function StatCard({ title, value, icon: Icon, gradient, iconColor, sub }: StatCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
+    <div className={`rounded-xl p-5 ${gradient} transition-all hover:shadow-md`}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-500 font-medium">{title}</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{value ?? '--'}</p>
-          {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+          <p className="text-[13px] text-stone-500 font-medium">{title}</p>
+          <p className="text-2xl font-bold text-stone-800 mt-1">{value ?? '--'}</p>
+          {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
         </div>
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colors[color] || colors.blue}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColor}`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>
@@ -61,13 +54,13 @@ function StatCard({ title, value, icon: Icon, color, sub }: StatCardProps) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="bg-white rounded-xl border border-stone-200 p-5">
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <div className="skeleton w-24 h-4" />
           <div className="skeleton w-16 h-8" />
         </div>
-        <div className="skeleton w-10 h-10 rounded-lg" />
+        <div className="skeleton w-10 h-10 rounded-xl" />
       </div>
     </div>
   );
@@ -76,7 +69,7 @@ function SkeletonCard() {
 interface QuickAction {
   label: string;
   icon: LucideIcon;
-  color: string;
+  gradient: string;
   to: string;
 }
 
@@ -99,10 +92,10 @@ export default function Dashboard() {
   });
 
   const quickActions: QuickAction[] = [
-    { label: 'New Client', icon: Plus, color: 'bg-blue-500 hover:bg-blue-600', to: '/clients' },
-    { label: 'Upload Document', icon: Upload, color: 'bg-green-500 hover:bg-green-600', to: '/documents' },
-    { label: 'Tax Calculator', icon: Calculator, color: 'bg-purple-500 hover:bg-purple-600', to: '/compute' },
-    { label: 'Submit Query', icon: Send, color: 'bg-amber-500 hover:bg-amber-600', to: '/queries' },
+    { label: 'New Client', icon: Plus, gradient: 'gradient-brand', to: '/clients' },
+    { label: 'Upload Document', icon: Upload, gradient: 'bg-emerald-500 hover:bg-emerald-600', to: '/documents' },
+    { label: 'Tax Calculator', icon: Calculator, gradient: 'bg-violet-500 hover:bg-violet-600', to: '/compute' },
+    { label: 'AI Query', icon: Send, gradient: 'bg-amber-500 hover:bg-amber-600', to: '/queries' },
   ];
 
   const urgencyColor = (days: number): string => {
@@ -121,28 +114,25 @@ export default function Dashboard() {
     }
   };
 
-  // Normalize upcoming data (API may return array or object with tasks key)
+  // Normalize data (API may return array or object)
   const upcomingTasks: ComplianceTask[] = (() => {
     if (!upcoming) return [];
     if (Array.isArray(upcoming)) return upcoming;
-    const obj = upcoming as UpcomingTasksResponse;
-    return obj.tasks || [];
+    return (upcoming as UpcomingTasksResponse).tasks || [];
   })();
 
-  // Normalize activity data
   const activityItems: ActivityItem[] = (() => {
     if (!activity) return [];
     if (Array.isArray(activity)) return activity;
-    const obj = activity as RecentActivityResponse;
-    return obj.items || [];
+    return (activity as RecentActivityResponse).items || [];
   })();
 
   return (
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-1">Welcome back. Here is your practice overview.</p>
+        <h1 className="text-2xl font-bold text-stone-800">Dashboard</h1>
+        <p className="text-sm text-stone-500 mt-1">Welcome back. Here is your practice overview.</p>
       </div>
 
       {/* Stats row */}
@@ -156,10 +146,10 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <StatCard title="Total Clients" value={stats?.total_clients} icon={Users} color="blue" />
-            <StatCard title="Active Tasks" value={stats?.active_tasks} icon={CalendarCheck} color="green" />
-            <StatCard title="Overdue Tasks" value={stats?.overdue_tasks} icon={AlertTriangle} color="red" />
-            <StatCard title="Queries Today" value={stats?.queries_today} icon={MessageSquare} color="purple" />
+            <StatCard title="Total Clients" value={stats?.total_clients} icon={Users} gradient="stat-blue border border-blue-100" iconColor="bg-blue-500 text-white" />
+            <StatCard title="Active Tasks" value={stats?.active_tasks} icon={CalendarCheck} gradient="stat-green border border-green-100" iconColor="bg-emerald-500 text-white" />
+            <StatCard title="Overdue Tasks" value={stats?.overdue_tasks} icon={AlertTriangle} gradient="stat-red border border-red-100" iconColor="bg-red-500 text-white" />
+            <StatCard title="Queries Today" value={stats?.queries_today} icon={MessageSquare} gradient="stat-purple border border-purple-100" iconColor="bg-violet-500 text-white" />
           </>
         )}
       </div>
@@ -172,7 +162,7 @@ export default function Dashboard() {
             <button
               key={action.label}
               onClick={() => navigate(action.to)}
-              className={`${action.color} text-white rounded-xl p-4 flex flex-col items-center gap-2 text-sm font-medium transition-colors shadow-sm`}
+              className={`${action.gradient} text-white rounded-xl p-4 flex flex-col items-center gap-2 text-sm font-medium transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5`}
             >
               <Icon className="w-5 h-5" />
               {action.label}
@@ -183,35 +173,35 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming deadlines */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-semibold text-slate-800">Upcoming Deadlines</h3>
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+            <h3 className="font-semibold text-stone-800 text-[15px]">Upcoming Deadlines</h3>
             <button
               onClick={() => navigate('/compliance')}
-              className="text-sm text-blue-500 hover:text-blue-600 flex items-center gap-1"
+              className="text-[13px] text-blue-500 hover:text-blue-600 flex items-center gap-1 font-medium"
             >
               View All <ArrowRight className="w-3 h-3" />
             </button>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-stone-50">
             {upcomingTasks.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <CheckCircle2 className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No upcoming deadlines in the next 7 days</p>
+              <div className="px-5 py-10 text-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                <p className="text-sm text-stone-500">No upcoming deadlines in the next 7 days</p>
               </div>
             ) : (
-              upcomingTasks.slice(0, 6).map((task, i) => {
+              upcomingTasks.slice(0, 6).map((task) => {
                 const daysLeft = task.days_until_due ?? Math.ceil((new Date(task.due_date).getTime() - new Date().getTime()) / 86400000);
                 return (
-                  <div key={task.id || i} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50">
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${urgencyColor(daysLeft)}`}>
+                  <div key={task.id} className="px-5 py-3 flex items-center gap-3 hover:bg-stone-50 transition-colors">
+                    <div className={`px-2 py-1 rounded-lg text-xs font-semibold ${urgencyColor(daysLeft)}`}>
                       {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-700 truncate">{task.task_name || task.name}</p>
-                      <p className="text-xs text-slate-400 truncate">{task.client_name || ''}</p>
+                      <p className="text-sm font-medium text-stone-700 truncate">{task.task_name || task.name}</p>
+                      <p className="text-xs text-stone-400 truncate">{task.client_name || ''}</p>
                     </div>
-                    <span className="text-xs text-slate-400">{formatDate(task.due_date)}</span>
+                    <span className="text-xs text-stone-400">{formatDate(task.due_date)}</span>
                   </div>
                 );
               })
@@ -220,29 +210,29 @@ export default function Dashboard() {
         </div>
 
         {/* Recent activity */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="font-semibold text-slate-800">Recent Activity</h3>
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-stone-100">
+            <h3 className="font-semibold text-stone-800 text-[15px]">Recent Activity</h3>
           </div>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-stone-50">
             {activityItems.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No recent activity</p>
+              <div className="px-5 py-10 text-center">
+                <Clock className="w-8 h-8 text-stone-300 mx-auto mb-2" />
+                <p className="text-sm text-stone-500">No recent activity</p>
               </div>
             ) : (
-              activityItems.slice(0, 6).map((item, i) => {
+              activityItems.slice(0, 6).map((item) => {
                 const Icon = activityIcon(item.type);
                 return (
-                  <div key={item.id || i} className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50">
-                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
-                      <Icon className="w-4 h-4 text-slate-500" />
+                  <div key={item.id || item.created_at} className="px-5 py-3 flex items-center gap-3 hover:bg-stone-50 transition-colors">
+                    <div className="w-8 h-8 bg-stone-100 rounded-lg flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-stone-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-700 truncate">{item.description || item.title}</p>
-                      <p className="text-xs text-slate-400">{item.client_name || ''}</p>
+                      <p className="text-sm text-stone-700 truncate">{item.description || item.title}</p>
+                      <p className="text-xs text-stone-400">{item.client_name || ''}</p>
                     </div>
-                    <span className="text-xs text-slate-400 whitespace-nowrap">
+                    <span className="text-xs text-stone-400 whitespace-nowrap">
                       {item.time_ago || formatDate(item.created_at)}
                     </span>
                   </div>

@@ -10,10 +10,14 @@ import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
+import uuid as _uuid
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 from app.config import get_settings
 from app.database import engine
@@ -61,14 +65,32 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Request ID Middleware ─────────────────────────────────────────────────────
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Attach a unique request ID to every request/response for traceability."""
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        request_id = request.headers.get("X-Request-ID") or str(_uuid.uuid4())
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+app.add_middleware(RequestIDMiddleware)
+
 # ── CORS ─────────────────────────────────────────────────────────────────────
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID"],
 )
 
 # ── Routers ──────────────────────────────────────────────────────────────────
@@ -109,7 +131,7 @@ _register_routers()
 
 @app.get("/api/health", tags=["health"])
 async def health_check() -> dict:
-    """Lightweight liveness probe."""
+    """Lightweight liveness probe — checks database and Redis."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -117,9 +139,22 @@ async def health_check() -> dict:
     except Exception:
         db_status = "unhealthy"
 
+    # Check Redis
+    redis_status = "healthy"
+    try:
+        import redis.asyncio as aioredis
+        r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+        await r.ping()
+        await r.aclose()
+    except Exception:
+        redis_status = "unhealthy"
+
+    overall = "ok" if db_status == "healthy" and redis_status == "healthy" else "degraded"
+
     return {
-        "status": "ok" if db_status == "healthy" else "degraded",
+        "status": overall,
         "database": db_status,
+        "redis": redis_status,
         "environment": settings.ENVIRONMENT,
         "version": app.version,
     }

@@ -33,6 +33,14 @@ router = APIRouter(tags=["compliance"])
 # --------------------------------------------------------------------------- #
 
 
+# Valid status transitions: prevents illogical jumps like completed -> pending
+_VALID_TRANSITIONS: dict[ComplianceStatus, set[ComplianceStatus]] = {
+    ComplianceStatus.pending: {ComplianceStatus.in_progress, ComplianceStatus.completed},
+    ComplianceStatus.in_progress: {ComplianceStatus.pending, ComplianceStatus.completed},
+    ComplianceStatus.completed: set(),  # terminal state — no going back
+}
+
+
 def _task_to_response(task: ComplianceTask) -> ComplianceTaskResponse:
     """Map a ComplianceTask ORM instance to the response schema."""
     return ComplianceTaskResponse(
@@ -232,7 +240,14 @@ async def update_task(
     update_data = body.model_dump(exclude_unset=True)
 
     if "status" in update_data and update_data["status"] is not None:
-        task.status = ComplianceStatus(update_data["status"].value)
+        new_status = ComplianceStatus(update_data["status"].value)
+        allowed = _VALID_TRANSITIONS.get(task.status, set())
+        if new_status not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot transition from '{task.status.value}' to '{new_status.value}'",
+            )
+        task.status = new_status
         # Set completed_at when marking as completed
         if task.status == ComplianceStatus.completed:
             from datetime import datetime, timezone

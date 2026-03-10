@@ -12,11 +12,12 @@ import {
   Loader2,
   Users,
   Building2,
-  Phone,
-  Mail,
 } from 'lucide-react';
 import { statusColor } from '../utils/format';
 import { AxiosError } from 'axios';
+
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
 interface AddClientModalProps {
   onClose: () => void;
@@ -57,6 +58,16 @@ function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
       setError('Firm name is required');
       return;
     }
+    // Validate PAN format if provided
+    if (form.pan && !PAN_REGEX.test(form.pan)) {
+      setError('PAN must be in format: ABCDE1234F (5 letters, 4 digits, 1 letter)');
+      return;
+    }
+    // Validate GSTIN format if provided
+    if (form.gstin && !GSTIN_REGEX.test(form.gstin)) {
+      setError('GSTIN must be a valid 15-character GST number');
+      return;
+    }
     setError('');
     mutation.mutate(form);
   };
@@ -73,61 +84,61 @@ function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-800">Add New Client</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+          <h3 className="text-lg font-semibold text-stone-800">Add New Client</h3>
+          <button onClick={onClose} className="p-1 text-stone-400 hover:text-stone-600 rounded">
             <X className="w-5 h-5" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 animate-fade-in">{error}</div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Firm / Client Name *</label>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Firm / Client Name *</label>
             <input
               type="text"
               value={form.firm_name}
               onChange={(e: ChangeEvent<HTMLInputElement>) => update('firm_name', e.target.value)}
               placeholder="e.g. Sharma & Associates"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">PAN</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">PAN</label>
               <input
                 type="text"
                 value={form.pan || ''}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => update('pan', e.target.value.toUpperCase())}
                 placeholder="ABCDE1234F"
                 maxLength={10}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
+                className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none uppercase font-mono"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">GSTIN</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">GSTIN</label>
               <input
                 type="text"
                 value={form.gstin || ''}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => update('gstin', e.target.value.toUpperCase())}
                 placeholder="22ABCDE1234F1Z5"
                 maxLength={15}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none uppercase"
+                className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none uppercase font-mono"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Entity Type</label>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Entity Type</label>
             <select
               value={form.entity_type || 'individual'}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => update('entity_type', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
             >
               {entityTypes.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -136,35 +147,35 @@ function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Contact Person</label>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Contact Person</label>
             <input
               type="text"
               value={form.contact_person || ''}
               onChange={(e: ChangeEvent<HTMLInputElement>) => update('contact_person', e.target.value)}
               placeholder="Full Name"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
               <input
                 type="email"
                 value={form.email || ''}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => update('email', e.target.value)}
                 placeholder="client@example.com"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1.5">Phone</label>
               <input
                 type="tel"
                 value={form.phone || ''}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => update('phone', e.target.value)}
                 placeholder="+91 98765 43210"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
               />
             </div>
           </div>
@@ -173,14 +184,14 @@ function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
+              className="px-4 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-100 rounded-xl transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="px-4 py-2 text-sm font-medium bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg flex items-center gap-2"
+              className="px-5 py-2.5 text-sm font-medium gradient-brand text-white rounded-xl flex items-center gap-2 shadow-sm hover:opacity-90 disabled:opacity-50 transition-all"
             >
               {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Add Client
@@ -204,7 +215,6 @@ export default function ClientList() {
     queryFn: () => clientsApi.list({ search, page, page_size: pageSize }),
   });
 
-  // Normalize list data from different API response shapes
   const normalizedData = data as ClientListResponse | undefined;
   const clients: Client[] = normalizedData?.items || normalizedData?.clients || (Array.isArray(data) ? data : []);
   const total: number = normalizedData?.total || clients.length;
@@ -212,14 +222,8 @@ export default function ClientList() {
 
   const entityLabel = (type: string | undefined): string => {
     const map: Record<string, string> = {
-      individual: 'Individual',
-      huf: 'HUF',
-      partnership: 'Partnership',
-      llp: 'LLP',
-      pvt_ltd: 'Pvt. Ltd.',
-      public_ltd: 'Public Ltd.',
-      trust: 'Trust',
-      society: 'Society',
+      individual: 'Individual', huf: 'HUF', partnership: 'Partnership', llp: 'LLP',
+      pvt_ltd: 'Pvt. Ltd.', public_ltd: 'Public Ltd.', trust: 'Trust', society: 'Society',
     };
     return map[type ?? ''] || type || '--';
   };
@@ -229,45 +233,45 @@ export default function ClientList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Clients</h1>
-          <p className="text-sm text-slate-500">Manage your client portfolio</p>
+          <h1 className="text-2xl font-bold text-stone-800">Clients</h1>
+          <p className="text-sm text-stone-500">Manage your client portfolio</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-sm hover:opacity-90 transition-all"
         >
           <Plus className="w-4 h-4" /> Add Client
         </button>
       </div>
 
       {/* Search bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <div className="card p-4">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
           <input
             type="text"
             value={search}
             onChange={(e: ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search by name, PAN, or GSTIN..."
-            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full pl-10 pr-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="card overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">
             <Loader2 className="w-6 h-6 animate-spin text-blue-500 mx-auto" />
-            <p className="text-sm text-slate-500 mt-2">Loading clients...</p>
+            <p className="text-sm text-stone-500 mt-2">Loading clients...</p>
           </div>
         ) : isError ? (
           <div className="p-8 text-center text-sm text-red-500">Failed to load clients. Please try again.</div>
         ) : clients.length === 0 ? (
           <div className="p-12 text-center">
-            <Users className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-600 font-medium">No clients found</p>
-            <p className="text-sm text-slate-400 mt-1">
+            <Users className="w-10 h-10 text-stone-300 mx-auto mb-3" />
+            <p className="text-stone-600 font-medium">No clients found</p>
+            <p className="text-sm text-stone-400 mt-1">
               {search ? 'Try a different search term' : 'Add your first client to get started'}
             </p>
           </div>
@@ -276,20 +280,20 @@ export default function ClientList() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Firm Name</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden sm:table-cell">PAN</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden md:table-cell">Entity Type</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider hidden lg:table-cell">Contact</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <tr className="bg-stone-50/80 border-b border-stone-200">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider">Firm Name</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider hidden sm:table-cell">PAN</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider hidden md:table-cell">Entity Type</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider hidden lg:table-cell">Contact</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-stone-100">
                   {clients.map((client) => (
                     <tr
                       key={client.id}
                       onClick={() => navigate(`/clients/${client.id}`)}
-                      className="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                      className="hover:bg-blue-50/40 cursor-pointer transition-colors"
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
@@ -297,23 +301,23 @@ export default function ClientList() {
                             {(client.firm_name || client.name || '?')[0].toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-800 truncate">{client.firm_name || client.name}</p>
-                            <p className="text-xs text-slate-400 truncate sm:hidden">{client.pan || ''}</p>
+                            <p className="text-sm font-medium text-stone-800 truncate">{client.firm_name || client.name}</p>
+                            <p className="text-xs text-stone-400 truncate sm:hidden">{client.pan || ''}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-sm text-slate-600 font-mono hidden sm:table-cell">
+                      <td className="px-5 py-3 text-sm text-stone-600 font-mono hidden sm:table-cell">
                         {client.pan || '--'}
                       </td>
-                      <td className="px-5 py-3 text-sm text-slate-600 hidden md:table-cell">
+                      <td className="px-5 py-3 text-sm text-stone-600 hidden md:table-cell">
                         {entityLabel(client.entity_type)}
                       </td>
                       <td className="px-5 py-3 hidden lg:table-cell">
-                        <div className="text-sm text-slate-600">{client.contact_person || '--'}</div>
-                        <div className="text-xs text-slate-400">{client.email || client.phone || ''}</div>
+                        <div className="text-sm text-stone-600">{client.contact_person || '--'}</div>
+                        <div className="text-xs text-stone-400">{client.email || client.phone || ''}</div>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColor(client.status || 'active')}`}>
+                        <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${statusColor(client.status || 'active')}`}>
                           {client.status || 'Active'}
                         </span>
                       </td>
@@ -325,25 +329,25 @@ export default function ClientList() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200">
-                <p className="text-sm text-slate-500">
+              <div className="flex items-center justify-between px-5 py-3 border-t border-stone-200">
+                <p className="text-sm text-stone-500">
                   Showing {((page - 1) * pageSize) + 1}--{Math.min(page * pageSize, total)} of {total}
                 </p>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                    className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 disabled:opacity-40 transition-colors"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="px-3 py-1 text-sm text-slate-600">
+                  <span className="px-3 py-1 text-sm text-stone-600">
                     {page} / {totalPages}
                   </span>
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-40"
+                    className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 disabled:opacity-40 transition-colors"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -354,7 +358,6 @@ export default function ClientList() {
         )}
       </div>
 
-      {/* Add client modal */}
       {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} />}
     </div>
   );
