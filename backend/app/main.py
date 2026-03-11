@@ -141,13 +141,16 @@ async def health_check() -> dict:
 
     # Check Redis
     redis_status = "healthy"
+    r = None
     try:
         import redis.asyncio as aioredis
         r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
         await r.ping()
-        await r.aclose()
     except Exception:
         redis_status = "unhealthy"
+    finally:
+        if r is not None:
+            await r.aclose()
 
     overall = "ok" if db_status == "healthy" and redis_status == "healthy" else "degraded"
 

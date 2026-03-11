@@ -131,7 +131,7 @@ export interface IncomeTaxRequest {
   assessment_year: string;
   age_category: string;
   gross_salary: number;
-  house_property_income: number;
+  income_hp: number;
   business_income: number;
   capital_gains_lt: number;
   capital_gains_st: number;
@@ -146,8 +146,8 @@ export interface IncomeTaxDeductions {
   section_80e: number;
   section_80ccd_1b: number;
   section_80tta: number;
-  hra: number;
-  lta: number;
+  hra_exempt: number;
+  lta_exempt: number;
   standard_deduction: number;
   nps_employer: number;
 }
@@ -164,7 +164,7 @@ export interface GSTRequest {
   place_of_supply: string;
   place_of_origin: string;
   taxable_value: number;
-  rate: number;
+  gst_rate: number;
 }
 
 export interface CapitalGainsRequest {
@@ -238,15 +238,15 @@ export interface TaxRegimeResult {
   taxable_income: number;
   tax_on_income: number;
   surcharge: number;
-  cess: number;
-  total_tax: number;
+  education_cess: number;
+  total_tax_liability: number;
   slab_breakdown?: Array<{ slab?: string; range?: string; tax: number }>;
 }
 
 export interface IncomeTaxResponse {
   old_regime?: TaxRegimeResult;
   new_regime?: TaxRegimeResult;
-  recommended_regime?: 'old' | 'new';
+  recommended_regime?: 'old_regime' | 'new_regime';
 }
 
 export interface TDSResponse {
@@ -447,23 +447,23 @@ export const complianceApi = {
   getUpcoming: (days: number = 7): Promise<UpcomingTasksResponse | ComplianceTask[]> =>
     api.get('/compliance/upcoming', { params: { days } }).then((r) => r.data),
   generateCalendar: (clientId: string, financialYear: string): Promise<unknown> =>
-    api.post('/compliance/generate-calendar', { client_id: clientId, financial_year: financialYear }).then((r) => r.data),
+    api.post('/compliance/generate', null, { params: { client_id: clientId, fy: financialYear } }).then((r) => r.data),
 };
 
 // ── Compute ───────────────────────────────────────────────
 export const computeApi = {
-  tax: (data: IncomeTaxRequest): Promise<IncomeTaxResponse> =>
-    api.post('/compute/tax', data).then((r) => r.data),
-  tds: (data: TDSRequest): Promise<TDSResponse> =>
-    api.post('/compute/tds', data).then((r) => r.data),
-  gst: (data: GSTRequest): Promise<GSTResponse> =>
-    api.post('/compute/gst', data).then((r) => r.data),
-  capitalGains: (data: CapitalGainsRequest): Promise<CapitalGainsResponse> =>
-    api.post('/compute/capital-gains', data).then((r) => r.data),
-  interest: (data: InterestRequest): Promise<InterestResponse> =>
-    api.post('/compute/interest', data).then((r) => r.data),
-  hra: (data: HRARequest): Promise<HRAResponse> =>
-    api.post('/compute/hra', data).then((r) => r.data),
+  tax: (data: IncomeTaxRequest, clientId?: string): Promise<IncomeTaxResponse> =>
+    api.post('/compute/tax', { client_id: clientId, data }).then((r) => r.data),
+  tds: (data: TDSRequest, clientId?: string): Promise<TDSResponse> =>
+    api.post('/compute/tds', { client_id: clientId, data }).then((r) => r.data),
+  gst: (data: GSTRequest, clientId?: string): Promise<GSTResponse> =>
+    api.post('/compute/gst', { client_id: clientId, data }).then((r) => r.data),
+  capitalGains: (data: CapitalGainsRequest, clientId?: string): Promise<CapitalGainsResponse> =>
+    api.post('/compute/capital-gains', { client_id: clientId, data }).then((r) => r.data),
+  interest: (data: InterestRequest, clientId?: string): Promise<InterestResponse> =>
+    api.post('/compute/interest', { client_id: clientId, data }).then((r) => r.data),
+  hra: (data: HRARequest, clientId?: string): Promise<HRAResponse> =>
+    api.post('/compute/hra', { client_id: clientId, data }).then((r) => r.data),
 };
 
 // ── Documents ─────────────────────────────────────────────
@@ -472,7 +472,7 @@ export const documentsApi = {
     const formData = new FormData();
     formData.append('file', file);
     if (clientId) formData.append('client_id', clientId);
-    if (docType) formData.append('document_type', docType);
+    if (docType) formData.append('doc_type', docType);
     return api.post('/documents/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
@@ -481,7 +481,7 @@ export const documentsApi = {
   get: (id: string): Promise<Document> =>
     api.get(`/documents/${id}`).then((r) => r.data),
   search: (query: string, params?: Record<string, unknown>): Promise<DocumentListResponse | Document[]> =>
-    api.get('/documents/search', { params: { q: query, ...params } }).then((r) => r.data),
+    api.post('/documents/search', { query, ...params }).then((r) => r.data),
   list: (params?: Record<string, unknown>): Promise<DocumentListResponse | Document[]> =>
     api.get('/documents', { params }).then((r) => r.data),
 };

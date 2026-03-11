@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -16,6 +17,17 @@ from app.models.user import User
 router = APIRouter(tags=["workflow"])
 
 settings = get_settings()
+
+_SAFE_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
+def _validate_safe_id(value: str, field_name: str) -> None:
+    """Raise 400 if value contains characters outside [a-zA-Z0-9_-]."""
+    if not _SAFE_ID_PATTERN.match(value):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid {field_name}: only alphanumerics, hyphens, and underscores are allowed",
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -63,6 +75,8 @@ async def trigger_workflow(
     The workflow_name is appended to the base n8n webhook URL configured in
     the application settings.
     """
+
+    _validate_safe_id(body.workflow_name, "workflow_name")
 
     webhook_url = f"{settings.N8N_WEBHOOK_URL}/webhook/{body.workflow_name}"
 
@@ -151,6 +165,8 @@ async def get_workflow_status(
 
     Requires the n8n REST API to be accessible from the backend.
     """
+
+    _validate_safe_id(execution_id, "execution_id")
 
     n8n_api_url = f"{settings.N8N_WEBHOOK_URL}/api/v1/executions/{execution_id}"
 

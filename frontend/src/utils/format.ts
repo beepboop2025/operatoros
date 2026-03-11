@@ -98,20 +98,23 @@ export function getAssessmentYears(): string[] {
 }
 
 /**
- * Status badge color mapping
+ * Status badge color mapping (dark theme)
  */
 export function statusColor(status: string | null | undefined): string {
   const map: Record<string, string> = {
-    completed: 'bg-green-100 text-green-700',
-    done: 'bg-green-100 text-green-700',
-    active: 'bg-blue-100 text-blue-700',
-    in_progress: 'bg-blue-100 text-blue-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    overdue: 'bg-red-100 text-red-700',
-    failed: 'bg-red-100 text-red-700',
-    draft: 'bg-slate-100 text-slate-600',
-    processing: 'bg-purple-100 text-purple-700',
-    uploaded: 'bg-cyan-100 text-cyan-700',
+    completed: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+    done: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+    active: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
+    in_progress: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
+    pending: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
+    overdue: 'bg-red-500/15 text-red-400 border border-red-500/20',
+    failed: 'bg-red-500/15 text-red-400 border border-red-500/20',
+    draft: 'bg-slate-500/15 text-slate-400 border border-slate-500/20',
+    draft_ready: 'bg-violet-500/15 text-violet-400 border border-violet-500/20',
+    processing: 'bg-violet-500/15 text-violet-400 border border-violet-500/20',
+    uploaded: 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/20',
+    responded: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+    closed: 'bg-slate-500/15 text-slate-400 border border-slate-500/20',
   };
-  return map[status?.toLowerCase() ?? ''] || 'bg-slate-100 text-slate-600';
+  return map[status?.toLowerCase() ?? ''] || 'bg-slate-500/15 text-slate-400 border border-slate-500/20';
 }

@@ -335,7 +335,7 @@ async def generate_calendar(
     client_id: uuid.UUID = Query(..., description="Client ID"),
     fy: str = Query(..., description="Financial year, e.g. '2025-26'"),
     audit_applicable: bool = Query(False, description="Whether tax audit applies"),
-    request: Request = None,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict]:
@@ -367,7 +367,7 @@ async def generate_calendar(
         entity_type="client",
         entity_id=client.id,
         details={"fy": fy, "audit_applicable": audit_applicable},
-        ip_address=get_client_ip(request) if request else None,
+        ip_address=get_client_ip(request),
     )
 
     return calendar

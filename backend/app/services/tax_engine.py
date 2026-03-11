@@ -21,7 +21,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_UP, ROUND_CEILING
+from decimal import Decimal, ROUND_HALF_UP, ROUND_CEILING, ROUND_FLOOR
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -346,6 +346,7 @@ def _apply_marginal_relief(
     tax_before_surcharge: Decimal,
     surcharge: Decimal,
     surcharge_threshold: Decimal,
+    slabs: SlabTable,
 ) -> Tuple[Decimal, Decimal, bool]:
     """Apply marginal relief on surcharge.
 
@@ -360,21 +361,15 @@ def _apply_marginal_relief(
 
     excess_income = income - surcharge_threshold
     # Tax at the threshold (no surcharge applies AT the threshold)
-    # We need to compute what the tax+surcharge would be at the threshold level.
-    # At threshold, surcharge is 0 (the lower bracket applies).
-    tax_at_threshold = tax_before_surcharge  # approximately — simplified
-    # Actually, we need to be more precise. The marginal relief ensures:
-    # (tax + surcharge) should not exceed (tax_at_threshold + excess_income)
-    # We approximate tax_at_threshold by recomputing without surcharge at that level.
+    tax_at_threshold, _ = _compute_tax_from_slabs(surcharge_threshold, slabs)
 
     total_with_surcharge = tax_before_surcharge + surcharge
-    max_allowed = tax_before_surcharge + excess_income  # simplified marginal relief
+    max_total = tax_at_threshold + excess_income
 
-    if total_with_surcharge > max_allowed:
-        adjusted_surcharge = max(excess_income - _ZERO, _ZERO)  # simplified
-        relief = surcharge - adjusted_surcharge
-        if relief > _ZERO:
-            return adjusted_surcharge, relief, True
+    relief = max(total_with_surcharge - max_total, _ZERO)
+    if relief > _ZERO:
+        adjusted_surcharge = max(surcharge - relief, _ZERO)
+        return adjusted_surcharge, relief, True
 
     return surcharge, _ZERO, False
 
@@ -463,7 +458,7 @@ def _compute_old_regime_deductions(deductions: Deductions, age: AgeCategory) -> 
 
 def _round_total_income(income: Decimal) -> Decimal:
     """Round total income DOWN to nearest ₹10 (as per IT Act)."""
-    return (income / 10).to_integral_value(rounding=ROUND_HALF_UP) * 10
+    return (income / 10).to_integral_value(rounding=ROUND_FLOOR) * 10
 
 
 # =========================================================================== #

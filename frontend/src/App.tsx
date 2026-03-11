@@ -21,10 +21,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#fafaf9]">
+      <div className="flex items-center justify-center h-screen bg-[#0f1219]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-stone-500 text-sm">Loading AuditMind...</p>
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(59,130,246,0.3)]" />
+          <p className="text-slate-400 text-sm">Loading AuditMind...</p>
         </div>
       </div>
     );

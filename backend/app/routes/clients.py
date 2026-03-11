@@ -130,9 +130,11 @@ async def list_clients(
     query = select(Client).options(selectinload(Client.assigned_user)).where(Client.is_active.is_(True))
 
     if search:
-        pattern = f"%{search}%"
+        # Escape LIKE wildcards to prevent injection of % and _
+        safe_search = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{safe_search}%"
         query = query.where(
-            Client.firm_name.ilike(pattern) | Client.pan.ilike(pattern)
+            Client.firm_name.ilike(pattern, escape="\\") | Client.pan.ilike(pattern, escape="\\")
         )
 
     # Total count
@@ -145,9 +147,40 @@ async def list_clients(
     result = await db.execute(query)
     clients = result.scalars().all()
 
+    # Batch compliance stats to avoid N+1 queries
+    client_ids = [c.id for c in clients]
+    stats_map: dict[uuid.UUID, ComplianceStats] = {}
+    if client_ids:
+        stats_result = await db.execute(
+            select(
+                ComplianceTask.client_id,
+                func.count(ComplianceTask.id).label("total"),
+                func.count(ComplianceTask.id).filter(
+                    ComplianceTask.status == ComplianceStatus.completed
+                ).label("completed"),
+                func.count(ComplianceTask.id).filter(
+                    ComplianceTask.status == ComplianceStatus.overdue
+                ).label("overdue"),
+                func.count(ComplianceTask.id).filter(
+                    ComplianceTask.status == ComplianceStatus.pending
+                ).label("pending"),
+            )
+            .where(ComplianceTask.client_id.in_(client_ids))
+            .group_by(ComplianceTask.client_id)
+        )
+        for row in stats_result.all():
+            stats_map[row.client_id] = ComplianceStats(
+                total_tasks=row.total,
+                completed_tasks=row.completed,
+                overdue_tasks=row.overdue,
+                pending_tasks=row.pending,
+            )
+
     items = []
     for c in clients:
-        stats = await _get_compliance_stats(db, c.id)
+        stats = stats_map.get(c.id, ComplianceStats(
+            total_tasks=0, completed_tasks=0, overdue_tasks=0, pending_tasks=0,
+        ))
         items.append(_build_client_response(c, stats))
 
     return ClientListResponse(items=items, total=total)
@@ -249,8 +282,15 @@ async def update_client(
     """Update an existing client's details."""
     client = await _get_client_or_404(db, client_id)
 
+    MUTABLE_FIELDS = {
+        "firm_name", "contact_person", "email", "phone",
+        "pan", "gstin", "cin", "entity_type", "address",
+    }
+
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
+        if field not in MUTABLE_FIELDS:
+            continue
         if field == "address":
             client.address_json = {"address": value} if value else None
         elif field == "entity_type" and value is not None:

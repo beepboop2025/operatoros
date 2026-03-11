@@ -82,15 +82,22 @@ async def log_action(
     return entry
 
 
+_TRUSTED_PROXIES = {"127.0.0.1", "::1", "localhost"}
+
+
 def get_client_ip(request) -> str | None:
     """
-    Extract the real client IP, respecting ``X-Forwarded-For`` when behind
-    a reverse proxy.
+    Extract the real client IP, respecting ``X-Forwarded-For`` only when the
+    request comes from a trusted proxy IP.  Otherwise use request.client.host
+    to prevent IP spoofing.
     """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # Take the first (leftmost) IP in the chain
-        return forwarded.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None
+    client_host = request.client.host if request.client else None
+
+    # Only trust X-Forwarded-For when the immediate connection is from a known proxy
+    if client_host in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            # Take the first (leftmost) IP in the chain
+            return forwarded.split(",")[0].strip()
+
+    return client_host

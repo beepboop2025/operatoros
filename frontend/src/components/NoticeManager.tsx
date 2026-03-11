@@ -24,9 +24,9 @@ import {
 import { formatDate, formatDateTime, statusColor } from '../utils/format';
 
 const URGENCY_COLORS: Record<string, string> = {
-  high: 'bg-red-100 text-red-700 border-red-200',
-  medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  low: 'bg-green-100 text-green-700 border-green-200',
+  high: 'bg-red-500/15 text-red-400 border-red-500/20',
+  medium: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+  low: 'bg-green-500/15 text-green-400 border-green-500/20',
 };
 
 export default function NoticeManager() {
@@ -100,17 +100,17 @@ export default function NoticeManager() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-stagger-1">
         <div>
-          <h1 className="text-2xl font-bold text-stone-800">Notices</h1>
-          <p className="text-sm text-stone-500">Track and respond to tax notices</p>
+          <h1 className="text-2xl font-bold text-slate-100">Notices</h1>
+          <p className="text-sm text-slate-400">Track and respond to tax notices</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
             <select
               value={filterStatus}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
-              className="pl-8 pr-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none appearance-none"
+              className="pl-8 pr-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -119,11 +119,11 @@ export default function NoticeManager() {
               <option value="responded">Responded</option>
               <option value="closed">Closed</option>
             </select>
-            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
           </div>
           <button
             onClick={() => setShowUpload(!showUpload)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-sm hover:opacity-90 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover-lift transition-all"
           >
             <Upload className="w-4 h-4" /> Upload Notice
           </button>
@@ -133,11 +133,11 @@ export default function NoticeManager() {
       {/* Upload panel */}
       {showUpload && (
         <div className="card p-6 text-center animate-fade-in">
-          <Upload className="w-8 h-8 text-stone-400 mx-auto mb-2" />
-          <p className="text-sm text-stone-600 mb-3">Upload a notice document for processing</p>
+          <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+          <p className="text-sm text-slate-300 mb-3">Upload a notice document for processing</p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-sm"
+            className="px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-md shadow-blue-500/15"
           >
             Choose File
           </button>
@@ -149,12 +149,12 @@ export default function NoticeManager() {
             onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) handleFileUpload(e.target.files); e.target.value = ''; }}
           />
           {uploadMutation.isPending && (
-            <div className="flex items-center justify-center gap-2 mt-3 text-sm text-blue-600">
+            <div className="flex items-center justify-center gap-2 mt-3 text-sm text-blue-400">
               <Loader2 className="w-4 h-4 animate-spin" /> Uploading and processing...
             </div>
           )}
           {uploadMutation.isError && (
-            <p className="text-sm text-red-600 mt-3">
+            <p className="text-sm text-red-400 mt-3">
               {(uploadMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed'}
             </p>
           )}
@@ -162,54 +162,55 @@ export default function NoticeManager() {
       )}
 
       {/* Notice list */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden animate-stagger-2">
         {isLoading ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-500 mx-auto" />
-            <p className="text-sm text-stone-500 mt-2">Loading notices...</p>
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
+            <p className="text-sm text-slate-400 mt-2">Loading notices...</p>
           </div>
         ) : noticeList.length === 0 ? (
           <div className="p-12 text-center">
-            <AlertTriangle className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-            <p className="text-stone-600 font-medium">No notices found</p>
-            <p className="text-sm text-stone-400 mt-1">Upload a notice to get started</p>
+            <AlertTriangle className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-300 font-medium">No notices found</p>
+            <p className="text-sm text-slate-500 mt-1">Upload a notice to get started</p>
           </div>
         ) : (
-          <div className="divide-y divide-stone-100">
-            {noticeList.map((notice) => {
+          <div className="divide-y divide-white/[0.03]">
+            {noticeList.map((notice, i) => {
               const Icon = noticeTypeIcon(notice.notice_type || notice.type);
               return (
                 <div
                   key={notice.id}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-stone-50 cursor-pointer transition-colors"
+                  className="flex items-center gap-4 px-5 py-4 row-hover cursor-pointer transition-all animate-row"
+                  style={{ animationDelay: `${i * 40}ms` }}
                   onClick={() => setSelectedNotice(notice)}
                 >
-                  <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-red-500" />
+                  <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-red-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-stone-700 truncate">
+                      <p className="text-sm font-medium text-slate-200 truncate">
                         {notice.title || notice.notice_type || 'Tax Notice'}
                       </p>
                       {notice.urgency && urgencyBadge(notice.urgency)}
                     </div>
                     <div className="flex gap-3 mt-0.5">
-                      {notice.client_name && <span className="text-xs text-stone-400">{notice.client_name}</span>}
-                      {notice.section && <span className="text-xs text-stone-400">Section {notice.section}</span>}
-                      <span className="text-xs text-stone-400">{formatDate(notice.notice_date || notice.created_at)}</span>
+                      {notice.client_name && <span className="text-xs text-slate-500">{notice.client_name}</span>}
+                      {notice.section && <span className="text-xs text-slate-500">Section {notice.section}</span>}
+                      <span className="text-xs text-slate-500">{formatDate(notice.notice_date || notice.created_at)}</span>
                     </div>
                   </div>
                   {notice.response_due_date && (
                     <div className="hidden sm:block text-right shrink-0">
-                      <p className="text-xs text-stone-400">Response Due</p>
-                      <p className="text-xs font-medium text-stone-600">{formatDate(notice.response_due_date)}</p>
+                      <p className="text-xs text-slate-500">Response Due</p>
+                      <p className="text-xs font-medium text-slate-300">{formatDate(notice.response_due_date)}</p>
                     </div>
                   )}
                   <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${statusColor(notice.status || 'pending')}`}>
                     {notice.status || 'Pending'}
                   </span>
-                  <Eye className="w-4 h-4 text-stone-400 shrink-0" />
+                  <Eye className="w-4 h-4 text-slate-500 shrink-0" />
                 </div>
               );
             })}
@@ -219,14 +220,14 @@ export default function NoticeManager() {
 
       {/* Notice detail modal */}
       {selectedNotice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setSelectedNotice(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-backdrop" onClick={() => setSelectedNotice(null)}>
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto animate-scale-in"
+            className="bg-[#161b26]/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-white/[0.08] w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
               <div>
-                <h3 className="text-lg font-semibold text-stone-800">
+                <h3 className="text-lg font-semibold text-slate-100">
                   {selectedNotice.title || selectedNotice.notice_type || 'Tax Notice'}
                 </h3>
                 <div className="flex items-center gap-2 mt-1">
@@ -236,7 +237,7 @@ export default function NoticeManager() {
                   {selectedNotice.urgency && urgencyBadge(selectedNotice.urgency)}
                 </div>
               </div>
-              <button onClick={() => setSelectedNotice(null)} className="p-1 text-stone-400 hover:text-stone-600">
+              <button onClick={() => setSelectedNotice(null)} className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -245,35 +246,35 @@ export default function NoticeManager() {
               {/* Info grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-stone-400">Client</p>
-                  <p className="text-stone-700 font-medium">{selectedNotice.client_name || '--'}</p>
+                  <p className="text-xs text-slate-500">Client</p>
+                  <p className="text-slate-200 font-medium">{selectedNotice.client_name || '--'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-stone-400">Section</p>
-                  <p className="text-stone-700 font-medium">{selectedNotice.section || '--'}</p>
+                  <p className="text-xs text-slate-500">Section</p>
+                  <p className="text-slate-200 font-medium">{selectedNotice.section || '--'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-stone-400">Assessment Year</p>
-                  <p className="text-stone-700 font-medium">{selectedNotice.assessment_year || '--'}</p>
+                  <p className="text-xs text-slate-500">Assessment Year</p>
+                  <p className="text-slate-200 font-medium">{selectedNotice.assessment_year || '--'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-stone-400">Notice Date</p>
-                  <p className="text-stone-700">{formatDate(selectedNotice.notice_date || selectedNotice.created_at)}</p>
+                  <p className="text-xs text-slate-500">Notice Date</p>
+                  <p className="text-slate-300">{formatDate(selectedNotice.notice_date || selectedNotice.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-stone-400">Response Due</p>
-                  <p className="text-stone-700 font-medium">{formatDate(selectedNotice.response_due_date)}</p>
+                  <p className="text-xs text-slate-500">Response Due</p>
+                  <p className="text-slate-200 font-medium">{formatDate(selectedNotice.response_due_date)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-stone-400">DIN</p>
-                  <p className="text-stone-700 font-mono text-xs">{selectedNotice.din || '--'}</p>
+                  <p className="text-xs text-slate-500">DIN</p>
+                  <p className="text-slate-300 font-mono text-xs">{selectedNotice.din || '--'}</p>
                 </div>
               </div>
 
               {selectedNotice.summary && (
                 <div>
-                  <p className="text-xs font-semibold text-stone-500 uppercase mb-1">Summary</p>
-                  <div className="p-4 bg-stone-50 rounded-xl text-sm text-stone-700 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Summary</p>
+                  <div className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl text-sm text-slate-300 leading-relaxed">
                     {selectedNotice.summary}
                   </div>
                 </div>
@@ -281,13 +282,13 @@ export default function NoticeManager() {
 
               {selectedNotice.issues && selectedNotice.issues.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-stone-500 uppercase mb-2">Issues Raised</p>
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Issues Raised</p>
                   <ul className="space-y-1.5">
                     {selectedNotice.issues.map((issue, idx) => {
                       const text = typeof issue === 'string' ? issue : issue.description || issue.issue || '';
                       return (
-                        <li key={`${selectedNotice.id}-issue-${text.slice(0, 20)}-${idx}`} className="flex items-start gap-2 text-sm text-stone-600">
-                          <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <li key={`${selectedNotice.id}-issue-${text.slice(0, 20)}-${idx}`} className="flex items-start gap-2 text-sm text-slate-300">
+                          <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
                           {text}
                         </li>
                       );
@@ -298,19 +299,19 @@ export default function NoticeManager() {
 
               {selectedNotice.draft_response && (
                 <div>
-                  <p className="text-xs font-semibold text-stone-500 uppercase mb-1">Draft Response</p>
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Draft Response</p>
+                  <div className="p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-xl text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
                     {selectedNotice.draft_response}
                   </div>
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-3 pt-2 border-t border-stone-200">
+              <div className="flex flex-wrap gap-3 pt-2 border-t border-white/[0.06]">
                 {selectedNotice.status === 'pending' && (
                   <button
                     onClick={() => processMutation.mutate(selectedNotice.id)}
                     disabled={processMutation.isPending}
-                    className="px-4 py-2.5 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center gap-2 transition-colors"
+                    className="px-4 py-2.5 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 disabled:opacity-50 text-violet-300 text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
                   >
                     {processMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
                     Process Notice
@@ -322,7 +323,7 @@ export default function NoticeManager() {
                     draftMutation.mutate({ id: selectedNotice.id, data: {} });
                   }}
                   disabled={draftMutation.isPending && draftingId === selectedNotice.id}
-                  className="px-4 py-2.5 gradient-brand hover:opacity-90 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-sm transition-all"
+                  className="px-4 py-2.5 gradient-brand hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/15 transition-all"
                 >
                   {draftMutation.isPending && draftingId === selectedNotice.id
                     ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -333,7 +334,7 @@ export default function NoticeManager() {
               </div>
 
               {draftMutation.isError && (
-                <p className="text-sm text-red-600">
+                <p className="text-sm text-red-400">
                   {(draftMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to draft response'}
                 </p>
               )}

@@ -69,7 +69,7 @@ export default function ClientDetail() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
       </div>
     );
   }
@@ -78,8 +78,8 @@ export default function ClientDetail() {
     return (
       <div className="text-center py-20">
         <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-        <p className="text-stone-600 font-medium">Client not found</p>
-        <button onClick={() => navigate('/clients')} className="text-blue-500 text-sm mt-2 hover:underline">
+        <p className="text-slate-300 font-medium">Client not found</p>
+        <button onClick={() => navigate('/clients')} className="text-blue-400 text-sm mt-2 hover:text-blue-300 transition-colors">
           Back to Clients
         </button>
       </div>
@@ -107,50 +107,50 @@ export default function ClientDetail() {
       {/* Back button */}
       <button
         onClick={() => navigate('/clients')}
-        className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-700"
+        className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Clients
       </button>
 
       {/* Client header */}
-      <div className="card p-6">
+      <div className="card p-6 animate-stagger-1">
         <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-          <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-xl font-bold shrink-0">
+          <div className="w-14 h-14 bg-blue-500/15 border border-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center text-xl font-bold shrink-0 glow-blue">
             {(client.firm_name || client.name || '?')[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-stone-800">{client.firm_name || client.name}</h1>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-sm text-stone-600">
+            <h1 className="text-xl font-bold text-slate-100">{client.firm_name || client.name}</h1>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-sm text-slate-300">
               {client.pan && (
                 <span className="flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-stone-400" /> PAN: <span className="font-mono font-medium">{client.pan}</span>
+                  <CreditCard className="w-4 h-4 text-slate-500" /> PAN: <span className="font-mono font-medium text-slate-200">{client.pan}</span>
                 </span>
               )}
               {client.gstin && (
                 <span className="flex items-center gap-1.5">
-                  <Hash className="w-4 h-4 text-stone-400" /> GSTIN: <span className="font-mono font-medium">{client.gstin}</span>
+                  <Hash className="w-4 h-4 text-slate-500" /> GSTIN: <span className="font-mono font-medium text-slate-200">{client.gstin}</span>
                 </span>
               )}
               {client.entity_type && (
                 <span className="flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-stone-400" /> {entityLabel(client.entity_type)}
+                  <Building2 className="w-4 h-4 text-slate-500" /> {entityLabel(client.entity_type)}
                 </span>
               )}
             </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm text-stone-500">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm text-slate-400">
               {client.contact_person && (
                 <span className="flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-stone-400" /> {client.contact_person}
+                  <User className="w-4 h-4 text-slate-500" /> {client.contact_person}
                 </span>
               )}
               {client.email && (
                 <span className="flex items-center gap-1.5">
-                  <Mail className="w-4 h-4 text-stone-400" /> {client.email}
+                  <Mail className="w-4 h-4 text-slate-500" /> {client.email}
                 </span>
               )}
               {client.phone && (
                 <span className="flex items-center gap-1.5">
-                  <Phone className="w-4 h-4 text-stone-400" /> {client.phone}
+                  <Phone className="w-4 h-4 text-slate-500" /> {client.phone}
                 </span>
               )}
             </div>
@@ -162,22 +162,26 @@ export default function ClientDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-stone-200">
+      <div className="border-b border-white/[0.06] animate-stagger-2">
         <div className="flex gap-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                  ${activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
+                className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all
+                  ${isActive
+                    ? 'text-blue-400'
+                    : 'text-slate-500 hover:text-slate-300'
                   }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
+                {isActive && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-blue-400 rounded-full" style={{ animation: 'tab-underline 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards', transformOrigin: 'left' }} />
+                )}
               </button>
             );
           })}
@@ -186,53 +190,53 @@ export default function ClientDetail() {
 
       {/* Tab content */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white card p-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
+          <div className="card-interactive p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 bg-green-50 text-green-600 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center">
                 <CheckCircle2 className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-stone-800">{completedTasks}</p>
-                <p className="text-xs text-stone-500">Completed Tasks</p>
+                <p className="text-2xl font-bold text-slate-100 animate-count">{completedTasks}</p>
+                <p className="text-xs text-slate-500">Completed Tasks</p>
               </div>
             </div>
           </div>
-          <div className="bg-white card p-5">
+          <div className="card-interactive p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg flex items-center justify-center">
                 <Clock className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-stone-800">{pendingTasks}</p>
-                <p className="text-xs text-stone-500">Pending Tasks</p>
+                <p className="text-2xl font-bold text-slate-100 animate-count">{pendingTasks}</p>
+                <p className="text-xs text-slate-500">Pending Tasks</p>
               </div>
             </div>
           </div>
-          <div className="bg-white card p-5">
+          <div className="card-interactive p-5">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-9 h-9 bg-red-50 text-red-600 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-stone-800">{overdueTasks}</p>
-                <p className="text-xs text-stone-500">Overdue Tasks</p>
+                <p className="text-2xl font-bold text-slate-100 animate-count">{overdueTasks}</p>
+                <p className="text-xs text-slate-500">Overdue Tasks</p>
               </div>
             </div>
           </div>
 
-          <div className="md:col-span-3 bg-white card p-5">
-            <h3 className="font-semibold text-stone-800 mb-3">Documents</h3>
+          <div className="md:col-span-3 card p-5">
+            <h3 className="font-semibold text-slate-200 mb-3">Documents</h3>
             {docList.length === 0 ? (
-              <p className="text-sm text-stone-400">No documents uploaded yet</p>
+              <p className="text-sm text-slate-500">No documents uploaded yet</p>
             ) : (
               <div className="space-y-2">
                 {docList.slice(0, 5).map((doc, i) => (
-                  <div key={doc.id || i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-stone-50">
-                    <FileText className="w-4 h-4 text-stone-400" />
+                  <div key={doc.id || i} className="flex items-center gap-3 p-2 rounded-lg row-hover transition-colors">
+                    <FileText className="w-4 h-4 text-slate-500" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-stone-700 truncate">{doc.filename || doc.name}</p>
-                      <p className="text-xs text-stone-400">{formatDate(doc.uploaded_at || doc.created_at)}</p>
+                      <p className="text-sm text-slate-200 truncate">{doc.filename || doc.name}</p>
+                      <p className="text-xs text-slate-500">{formatDate(doc.uploaded_at || doc.created_at)}</p>
                     </div>
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${statusColor(doc.status || 'uploaded')}`}>
                       {doc.status || 'Uploaded'}
@@ -246,32 +250,32 @@ export default function ClientDetail() {
       )}
 
       {activeTab === 'compliance' && (
-        <div className="bg-white card overflow-hidden">
+        <div className="card overflow-hidden animate-fade-in">
           {taskList.length === 0 ? (
             <div className="p-12 text-center">
-              <CalendarCheck className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-              <p className="text-stone-600 font-medium">No compliance tasks</p>
-              <p className="text-sm text-stone-400 mt-1">Generate a compliance calendar to get started</p>
+              <CalendarCheck className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-300 font-medium">No compliance tasks</p>
+              <p className="text-sm text-slate-500 mt-1">Generate a compliance calendar to get started</p>
             </div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="bg-stone-50 border-b border-stone-200">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase">Task</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase hidden sm:table-cell">Due Date</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase hidden md:table-cell">Type</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase">Status</th>
+                <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase">Task</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase hidden sm:table-cell">Due Date</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase hidden md:table-cell">Type</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-white/[0.03]">
                 {taskList.map((task, i) => (
-                  <tr key={task.id || i} className="hover:bg-stone-50">
+                  <tr key={task.id || i} className="row-hover animate-row" style={{ animationDelay: `${i * 30}ms` }}>
                     <td className="px-5 py-3">
-                      <p className="text-sm font-medium text-stone-700">{task.task_name || task.name}</p>
-                      <p className="text-xs text-stone-400 sm:hidden">{formatDate(task.due_date)}</p>
+                      <p className="text-sm font-medium text-slate-200">{task.task_name || task.name}</p>
+                      <p className="text-xs text-slate-500 sm:hidden">{formatDate(task.due_date)}</p>
                     </td>
-                    <td className="px-5 py-3 text-sm text-stone-600 hidden sm:table-cell">{formatDate(task.due_date)}</td>
-                    <td className="px-5 py-3 text-sm text-stone-600 hidden md:table-cell">{task.task_type || '--'}</td>
+                    <td className="px-5 py-3 text-sm text-slate-400 hidden sm:table-cell">{formatDate(task.due_date)}</td>
+                    <td className="px-5 py-3 text-sm text-slate-400 hidden md:table-cell">{task.task_type || '--'}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColor(task.status)}`}>
                         {task.status}
@@ -286,31 +290,31 @@ export default function ClientDetail() {
       )}
 
       {activeTab === 'documents' && (
-        <div className="bg-white card overflow-hidden">
+        <div className="card overflow-hidden animate-fade-in">
           {docList.length === 0 ? (
             <div className="p-12 text-center">
-              <FileText className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-              <p className="text-stone-600 font-medium">No documents</p>
-              <p className="text-sm text-stone-400 mt-1">Upload documents from the Documents page</p>
+              <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-300 font-medium">No documents</p>
+              <p className="text-sm text-slate-500 mt-1">Upload documents from the Documents page</p>
             </div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="bg-stone-50 border-b border-stone-200">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase">Document</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase hidden sm:table-cell">Type</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase hidden md:table-cell">Uploaded</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-stone-500 uppercase">Status</th>
+                <tr className="bg-white/[0.02] border-b border-white/[0.06]">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase">Document</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase hidden sm:table-cell">Type</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase hidden md:table-cell">Uploaded</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-white/[0.03]">
                 {docList.map((doc, i) => (
-                  <tr key={doc.id || i} className="hover:bg-stone-50">
+                  <tr key={doc.id || i} className="row-hover animate-row" style={{ animationDelay: `${i * 30}ms` }}>
                     <td className="px-5 py-3">
-                      <p className="text-sm font-medium text-stone-700 truncate max-w-xs">{doc.filename || doc.name}</p>
+                      <p className="text-sm font-medium text-slate-200 truncate max-w-xs">{doc.filename || doc.name}</p>
                     </td>
-                    <td className="px-5 py-3 text-sm text-stone-600 hidden sm:table-cell">{doc.document_type || doc.type || '--'}</td>
-                    <td className="px-5 py-3 text-sm text-stone-600 hidden md:table-cell">{formatDate(doc.uploaded_at || doc.created_at)}</td>
+                    <td className="px-5 py-3 text-sm text-slate-400 hidden sm:table-cell">{doc.document_type || doc.type || '--'}</td>
+                    <td className="px-5 py-3 text-sm text-slate-400 hidden md:table-cell">{formatDate(doc.uploaded_at || doc.created_at)}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColor(doc.status || 'uploaded')}`}>
                         {doc.status || 'Uploaded'}

@@ -4,6 +4,7 @@ Shared FastAPI dependencies: authentication, role gating, Redis, rate limiting.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import List
 from uuid import UUID
@@ -27,6 +28,7 @@ _bearer_scheme = HTTPBearer(auto_error=True)
 # ── Redis ────────────────────────────────────────────────────────────────────
 
 _redis_pool: aioredis.Redis | None = None
+_redis_lock: asyncio.Lock = asyncio.Lock()
 
 
 async def get_redis(
@@ -35,11 +37,14 @@ async def get_redis(
     """Return a shared async Redis connection (lazily initialised)."""
     global _redis_pool
     if _redis_pool is None:
-        _redis_pool = aioredis.from_url(
-            settings.REDIS_URL,
-            decode_responses=True,
-            max_connections=20,
-        )
+        async with _redis_lock:
+            # Double-checked locking: re-check after acquiring the lock
+            if _redis_pool is None:
+                _redis_pool = aioredis.from_url(
+                    settings.REDIS_URL,
+                    decode_responses=True,
+                    max_connections=20,
+                )
     return _redis_pool
 
 
@@ -124,19 +129,29 @@ class RateLimiter:
         now = time.time()
         window_start = now - self.window_seconds
 
+        # Check count BEFORE adding the current request
         pipe = redis_conn.pipeline()
         pipe.zremrangebyscore(key, "-inf", window_start)
-        pipe.zadd(key, {str(now): now})
         pipe.zcard(key)
-        pipe.expire(key, self.window_seconds + 1)
         results = await pipe.execute()
 
-        request_count: int = results[2]
+        request_count: int = results[1]
 
-        if request_count > self.max_requests:
-            retry_after = int(self.window_seconds - (now - window_start))
+        if request_count >= self.max_requests:
+            # Find the oldest entry to compute when the window will free a slot
+            oldest = await redis_conn.zrange(key, 0, 0, withscores=True)
+            if oldest:
+                retry_after = int(oldest[0][1] + self.window_seconds - now)
+            else:
+                retry_after = self.window_seconds
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Rate limit exceeded",
                 headers={"Retry-After": str(max(retry_after, 1))},
             )
+
+        # Only add the request after confirming we're within limits
+        pipe2 = redis_conn.pipeline()
+        pipe2.zadd(key, {str(now): now})
+        pipe2.expire(key, self.window_seconds + 1)
+        await pipe2.execute()

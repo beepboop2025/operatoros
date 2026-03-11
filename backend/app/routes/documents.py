@@ -27,6 +27,9 @@ router = APIRouter(tags=["documents"])
 # Storage directory for uploaded files
 UPLOAD_DIR = Path("/app/uploads")
 
+# Maximum allowed file size: 50 MB
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
 
 # --------------------------------------------------------------------------- #
 #  POST /upload — Upload a document
@@ -72,6 +75,14 @@ async def upload_document(
             detail=f"Invalid doc_type. Must be one of: {valid_types}",
         )
 
+    # Check file size before reading the full file
+    # First try Content-Length header for an early check
+    if file.size is not None and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE // (1024 * 1024)} MB",
+        )
+
     # Save file to disk
     doc_id = uuid.uuid4()
     upload_dir = UPLOAD_DIR / str(client_id)
@@ -83,6 +94,13 @@ async def upload_document(
     file_path = upload_dir / f"{doc_id}{file_ext}"
 
     content = await file.read()
+
+    # Verify actual content size
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE // (1024 * 1024)} MB",
+        )
     import aiofiles
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)

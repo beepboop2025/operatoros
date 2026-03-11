@@ -175,6 +175,11 @@ async def update_me(
             detail="Only admins can change active status",
         )
     if body.is_active is not None:
+        if body.is_active is False:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot deactivate your own account",
+            )
         current_user.is_active = body.is_active
 
     await db.flush()
