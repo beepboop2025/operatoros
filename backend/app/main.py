@@ -83,6 +83,12 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(RequestIDMiddleware)
 
+# ── Audit Middleware ─────────────────────────────────────────────────────────
+
+from app.middleware.audit import AuditMiddleware  # noqa: E402
+
+app.add_middleware(AuditMiddleware)
+
 # ── CORS ─────────────────────────────────────────────────────────────────────
 
 app.add_middleware(
@@ -108,6 +114,9 @@ _ROUTER_CONFIG: list[tuple[str, str, str]] = [
     ("app.routes.draft", "router", "/api/draft"),
     ("app.routes.dashboard", "router", "/api/dashboard"),
     ("app.routes.workflow", "router", "/api/workflow"),
+    ("app.routes.audit", "router", "/api/audit"),
+    ("app.routes.tasks_status", "router", "/api/tasks"),
+    ("app.routes.firms", "router", "/api/firms"),
 ]
 
 

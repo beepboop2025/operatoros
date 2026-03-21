@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, ChangeEvent, DragEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, ChangeEvent, DragEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, clientsApi } from '../api/client';
 import { useToast } from './Toast';
@@ -35,11 +35,22 @@ function fileIcon(name: string | undefined): LucideIcon {
   return File;
 }
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
 export default function DocumentManager() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchInput, setSearchInput] = useState<string>('');
+  const searchQuery = useDebounce(searchInput, 300);
   const [filterClient, setFilterClient] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('');
   const [showFilters, setShowFilters] = useState<boolean>(false);
@@ -238,8 +249,8 @@ export default function DocumentManager() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+            value={searchInput}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value)}
             placeholder="Search documents (semantic search, min 3 characters)..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
           />

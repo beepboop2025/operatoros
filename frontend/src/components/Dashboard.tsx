@@ -7,6 +7,8 @@ import type {
   ActivityItem,
   UpcomingTasksResponse,
   RecentActivityResponse,
+  WorkloadResponse,
+  TeamMemberWorkload,
 } from '../api/client';
 import {
   Users,
@@ -22,6 +24,7 @@ import {
   FileText,
   CheckCircle2,
   TrendingUp,
+  BarChart3,
   LucideIcon,
 } from 'lucide-react';
 import { formatDate } from '../utils/format';
@@ -94,6 +97,11 @@ export default function Dashboard() {
   const { data: activity } = useQuery<RecentActivityResponse | ActivityItem[]>({
     queryKey: ['dashboard', 'activity'],
     queryFn: dashboardApi.recentActivity,
+  });
+
+  const { data: workload } = useQuery<WorkloadResponse>({
+    queryKey: ['dashboard', 'workload'],
+    queryFn: dashboardApi.workload,
   });
 
   const quickActions: QuickAction[] = [
@@ -183,6 +191,50 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {/* Workload distribution */}
+      {workload?.team && workload.team.length > 0 && (
+        <div className="card overflow-hidden animate-stagger-5">
+          <div className="px-5 py-4 border-b border-white/[0.04] flex items-center justify-between">
+            <h3 className="font-semibold text-slate-200 text-[15px] flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-violet-400" /> Team Workload
+            </h3>
+          </div>
+          <div className="p-5">
+            <div className="space-y-3">
+              {workload.team.slice(0, 8).map((member: TeamMemberWorkload, i: number) => {
+                const maxTasks = Math.max(...workload.team.map((m: TeamMemberWorkload) => m.total_tasks), 1);
+                const barWidth = Math.max((member.total_tasks / maxTasks) * 100, 2);
+                return (
+                  <div key={member.user_id} className="animate-row" style={{ animationDelay: `${i * 40}ms` }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm text-slate-300 font-medium truncate max-w-[180px]">{member.name}</span>
+                      <div className="flex items-center gap-3 text-xs text-slate-500">
+                        <span>{member.completed} done</span>
+                        <span>{member.pending} pending</span>
+                        {member.overdue > 0 && (
+                          <span className="text-red-400">{member.overdue} overdue</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="h-2 bg-slate-800/50 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${barWidth}%`,
+                          background: member.overdue > 0
+                            ? 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)'
+                            : 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Upcoming deadlines */}

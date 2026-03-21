@@ -38,6 +38,7 @@ from app.models.compliance import ComplianceTask  # noqa: E402
 from app.models.computation import TaxComputation  # noqa: E402
 from app.models.notice import Notice  # noqa: E402
 from app.models.audit_log import AuditLog  # noqa: E402
+from app.models.firm import Firm  # noqa: E402
 
 __all__ = [
     "Base",
@@ -49,4 +50,5 @@ __all__ = [
     "TaxComputation",
     "Notice",
     "AuditLog",
+    "Firm",
 ]

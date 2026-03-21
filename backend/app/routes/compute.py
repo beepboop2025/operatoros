@@ -46,6 +46,8 @@ from app.services.tax_engine import (
 )
 from app.utils.cii_table import CIINotFoundError
 
+from fastapi.responses import FileResponse
+
 router = APIRouter(tags=["compute"])
 
 _ZERO = Decimal("0")
@@ -789,3 +791,245 @@ async def compute_depreciation_endpoint(
     )
 
     return result
+
+
+# --------------------------------------------------------------------------- #
+#  GET /income-tax/{computation_id}/pdf — Download PDF report
+# --------------------------------------------------------------------------- #
+
+
+@router.get(
+    "/income-tax/{computation_id}/pdf",
+    summary="Download PDF tax computation report",
+)
+async def download_tax_report_pdf(
+    computation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    """Generate and download a PDF report for a saved tax computation."""
+    result = await db.execute(
+        select(TaxComputation).where(TaxComputation.id == computation_id)
+    )
+    comp = result.scalar_one_or_none()
+    if comp is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Computation not found",
+        )
+
+    client_result = await db.execute(
+        select(Client).where(Client.id == comp.client_id)
+    )
+    client = client_result.scalar_one_or_none()
+
+    from app.services.pdf_generator import PDFGenerator
+
+    generator = PDFGenerator()
+    filepath = generator.generate_income_tax_report(computation=comp, client=client)
+
+    return FileResponse(
+        path=filepath,
+        filename=f"tax_computation_{computation_id}.pdf",
+        media_type="application/pdf",
+    )
+
+
+# --------------------------------------------------------------------------- #
+#  Bulk Operations
+# --------------------------------------------------------------------------- #
+
+
+class BulkIncomeTaxItem(BaseModel):
+    client_id: uuid.UUID
+    data: IncomeTaxRequest
+
+
+class BulkTDSItem(BaseModel):
+    client_id: uuid.UUID
+    data: TDSRequest
+
+
+class BulkResultItem(BaseModel):
+    client_id: str
+    success: bool
+    result: dict | None = None
+    error: str | None = None
+
+
+class BulkResponse(BaseModel):
+    success_count: int
+    error_count: int
+    results: list[BulkResultItem]
+
+
+@router.post(
+    "/bulk-income-tax",
+    response_model=BulkResponse,
+    summary="Bulk income tax computation (max 100 items)",
+)
+async def bulk_income_tax(
+    items: list[BulkIncomeTaxItem],
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BulkResponse:
+    """Compute income tax for multiple clients in one request.
+
+    Processes up to 100 items concurrently with a semaphore limit of 10.
+    """
+    if len(items) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 100 items per bulk request",
+        )
+
+    import asyncio
+
+    semaphore = asyncio.Semaphore(10)
+
+    async def process_one(item: BulkIncomeTaxItem) -> BulkResultItem:
+        async with semaphore:
+            try:
+                await _validate_client(db, item.client_id)
+                engine_req = _adapt_income_tax_request(item.data)
+                engine_result = compute_income_tax(engine_req)
+                adapted = _adapt_income_tax_response(engine_result)
+
+                await _save_computation(
+                    db,
+                    client_id=item.client_id,
+                    assessment_year=item.data.assessment_year,
+                    regime=engine_result.recommended_regime.replace("_regime", ""),
+                    gross_income=engine_result.old_regime.gross_total_income,
+                    tax_liability=min(
+                        engine_result.old_regime.total_tax_liability,
+                        engine_result.new_regime.total_tax_liability,
+                    ),
+                    computation_json={
+                        "type": "income_tax",
+                        "bulk": True,
+                        "recommended": adapted.recommended_regime,
+                        "savings": str(adapted.savings_amount),
+                    },
+                    computed_by=current_user.id,
+                )
+
+                return BulkResultItem(
+                    client_id=str(item.client_id),
+                    success=True,
+                    result=adapted.model_dump(mode="json"),
+                )
+            except Exception as exc:
+                return BulkResultItem(
+                    client_id=str(item.client_id),
+                    success=False,
+                    error=str(exc),
+                )
+
+    results = await asyncio.gather(*[process_one(item) for item in items])
+
+    success_count = sum(1 for r in results if r.success)
+    error_count = sum(1 for r in results if not r.success)
+
+    await log_action(
+        db,
+        user_id=current_user.id,
+        action="compute.bulk_income_tax",
+        entity_type="computation",
+        details={
+            "item_count": len(items),
+            "success_count": success_count,
+            "error_count": error_count,
+        },
+        ip_address=get_client_ip(request),
+    )
+
+    return BulkResponse(
+        success_count=success_count,
+        error_count=error_count,
+        results=results,
+    )
+
+
+@router.post(
+    "/bulk-tds",
+    response_model=BulkResponse,
+    summary="Bulk TDS computation (max 100 items)",
+)
+async def bulk_tds(
+    items: list[BulkTDSItem],
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> BulkResponse:
+    """Compute TDS for multiple payments in one request."""
+    if len(items) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 100 items per bulk request",
+        )
+
+    import asyncio
+
+    semaphore = asyncio.Semaphore(10)
+
+    async def process_one(item: BulkTDSItem) -> BulkResultItem:
+        async with semaphore:
+            try:
+                await _validate_client(db, item.client_id)
+                engine_req = _adapt_tds_request(item.data)
+                engine_result = compute_tds(engine_req)
+                adapted = _adapt_tds_response(engine_result)
+
+                await _save_computation(
+                    db,
+                    client_id=item.client_id,
+                    assessment_year="N/A",
+                    regime="new",
+                    gross_income=item.data.amount,
+                    tax_liability=adapted.tds_amount,
+                    computation_json={
+                        "type": "tds",
+                        "bulk": True,
+                        "section": adapted.section,
+                        "tds_amount": str(adapted.tds_amount),
+                    },
+                    computed_by=current_user.id,
+                )
+
+                return BulkResultItem(
+                    client_id=str(item.client_id),
+                    success=True,
+                    result=adapted.model_dump(mode="json"),
+                )
+            except Exception as exc:
+                return BulkResultItem(
+                    client_id=str(item.client_id),
+                    success=False,
+                    error=str(exc),
+                )
+
+    results = await asyncio.gather(*[process_one(item) for item in items])
+
+    success_count = sum(1 for r in results if r.success)
+    error_count = sum(1 for r in results if not r.success)
+
+    await log_action(
+        db,
+        user_id=current_user.id,
+        action="compute.bulk_tds",
+        entity_type="computation",
+        details={
+            "item_count": len(items),
+            "success_count": success_count,
+            "error_count": error_count,
+        },
+        ip_address=get_client_ip(request),
+    )
+
+    return BulkResponse(
+        success_count=success_count,
+        error_count=error_count,
+        results=results,
+    )

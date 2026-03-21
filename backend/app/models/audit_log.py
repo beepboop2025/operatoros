@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,8 +22,8 @@ class AuditLog(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
 
     action: Mapped[str] = mapped_column(
@@ -35,6 +35,16 @@ class AuditLog(Base):
     entity_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
+
+    # Request-level fields for middleware audit trail
+    endpoint: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    method: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    request_body: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    duration_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     details: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON, nullable=True
@@ -48,7 +58,7 @@ class AuditLog(Base):
     )
 
     # --- Relationships ---
-    user: Mapped["User"] = relationship(
+    user: Mapped[Optional["User"]] = relationship(
         back_populates="audit_logs", foreign_keys=[user_id]
     )
 
@@ -57,6 +67,9 @@ class AuditLog(Base):
         Index("ix_audit_logs_action", "action"),
         Index("ix_audit_logs_entity_type_entity_id", "entity_type", "entity_id"),
         Index("ix_audit_logs_timestamp", "timestamp"),
+        Index("ix_audit_logs_endpoint", "endpoint"),
+        Index("ix_audit_logs_method", "method"),
+        Index("ix_audit_logs_response_status", "response_status"),
     )
 
     def __repr__(self) -> str:

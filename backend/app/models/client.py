@@ -72,6 +72,11 @@ class Client(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
 
+    # Multi-tenant firm association
+    firm_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("firms.id"), nullable=True
+    )
+
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     onboarded_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True

@@ -70,3 +70,20 @@ class RecentActivity(BaseModel):
     recent_queries: list[RecentQueryItem] = Field(default_factory=list)
     recent_documents: list[RecentDocumentItem] = Field(default_factory=list)
     recent_computations: list[RecentComputationItem] = Field(default_factory=list)
+
+
+# ---------- Workload ----------
+
+class TeamMemberWorkload(BaseModel):
+    user_id: UUID
+    name: str
+    total_tasks: int = 0
+    completed: int = 0
+    pending: int = 0
+    in_progress: int = 0
+    overdue: int = 0
+    completion_rate: float = 0.0
+
+
+class WorkloadResponse(BaseModel):
+    team: list[TeamMemberWorkload] = Field(default_factory=list)

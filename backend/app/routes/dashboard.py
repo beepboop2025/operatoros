@@ -5,12 +5,14 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import redis.asyncio as aioredis
+
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_redis
 from app.models.client import Client
 from app.models.compliance import ComplianceStatus, ComplianceTask
 from app.models.computation import TaxComputation
@@ -43,10 +45,20 @@ router = APIRouter(tags=["dashboard"])
 async def get_stats(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis_conn: aioredis.Redis = Depends(get_redis),
 ) -> DashboardStats:
     """Return aggregate statistics for the dashboard: total clients, tasks,
     overdue items, documents processed, and queries today.
+
+    Results are cached in Redis for 60 seconds.
     """
+    from app.services.cache import CacheService, TTL_DASHBOARD_STATS
+
+    cache = CacheService(redis_conn)
+    cache_key = CacheService.dashboard_key("stats")
+    cached = await cache.get(cache_key)
+    if cached is not None:
+        return DashboardStats(**cached)
 
     today = date.today()
     today_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
@@ -95,7 +107,7 @@ async def get_stats(
     )
     queries_today = queries_today_result.scalar_one()
 
-    return DashboardStats(
+    stats = DashboardStats(
         total_clients=total_clients,
         active_tasks=active_tasks,
         overdue_tasks=overdue_tasks,
@@ -103,6 +115,9 @@ async def get_stats(
         queries_today=queries_today,
         revenue_this_month=Decimal("0"),  # Placeholder: no revenue model yet
     )
+
+    await cache.set(cache_key, stats.model_dump(mode="json"), TTL_DASHBOARD_STATS)
+    return stats
 
 
 # --------------------------------------------------------------------------- #
@@ -285,3 +300,139 @@ async def get_recent_activity(
         recent_documents=recent_documents,
         recent_computations=recent_computations,
     )
+
+
+# --------------------------------------------------------------------------- #
+#  GET /compliance-calendar — Upcoming filing dates
+# --------------------------------------------------------------------------- #
+
+
+@router.get(
+    "/compliance-calendar",
+    summary="Upcoming filing dates across all clients",
+)
+async def get_compliance_calendar(
+    months: int = Query(3, ge=1, le=12, description="Months to look ahead"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """Return upcoming statutory filing dates grouped by month.
+
+    Includes GST monthly (1st, 11th, 13th, 20th), TDS quarterly,
+    ITR annual, and advance tax dates.
+    """
+    from app.utils.compliance_calendar import generate_compliance_calendar
+
+    # Generate a reference calendar for a generic entity
+    fy_start = date.today().year if date.today().month >= 4 else date.today().year - 1
+    fy = f"{fy_start}-{(fy_start + 1) % 100:02d}"
+    generic_calendar = generate_compliance_calendar(
+        entity_type="private_limited",
+        audit_applicable=True,
+        fy=fy,
+    )
+
+    # Filter to upcoming dates
+    cutoff = date.today() + timedelta(days=months * 30)
+    upcoming = [
+        item for item in generic_calendar
+        if date.fromisoformat(item["due_date"]) >= date.today()
+        and date.fromisoformat(item["due_date"]) <= cutoff
+    ]
+
+    # Also fetch actual compliance tasks from DB
+    result = await db.execute(
+        select(ComplianceTask, Client.firm_name)
+        .join(Client, ComplianceTask.client_id == Client.id)
+        .where(
+            and_(
+                ComplianceTask.due_date >= date.today(),
+                ComplianceTask.due_date <= cutoff,
+                ComplianceTask.status.notin_([ComplianceStatus.completed]),
+            )
+        )
+        .order_by(ComplianceTask.due_date)
+        .limit(100)
+    )
+    db_tasks = [
+        {
+            "id": str(task.id),
+            "client_name": firm_name,
+            "task_type": task.task_type.value,
+            "due_date": task.due_date.isoformat(),
+            "status": task.status.value,
+            "description": task.description or "",
+        }
+        for task, firm_name in result.all()
+    ]
+
+    return {
+        "statutory_calendar": upcoming,
+        "client_tasks": db_tasks,
+    }
+
+
+# --------------------------------------------------------------------------- #
+#  GET /workload — Tasks per associate, completion rates
+# --------------------------------------------------------------------------- #
+
+
+@router.get(
+    "/workload",
+    summary="Workload distribution across team members",
+)
+async def get_workload(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return task counts per associate with completion rates.
+
+    Used for the workload chart on the dashboard.
+    """
+    from app.models.user import User as UserModel
+
+    # Tasks per assignee with status breakdown
+    result = await db.execute(
+        select(
+            UserModel.id,
+            UserModel.full_name,
+            func.count(ComplianceTask.id).label("total"),
+            func.count(ComplianceTask.id).filter(
+                ComplianceTask.status == ComplianceStatus.completed
+            ).label("completed"),
+            func.count(ComplianceTask.id).filter(
+                ComplianceTask.status == ComplianceStatus.pending
+            ).label("pending"),
+            func.count(ComplianceTask.id).filter(
+                ComplianceTask.status == ComplianceStatus.in_progress
+            ).label("in_progress"),
+            func.count(ComplianceTask.id).filter(
+                and_(
+                    ComplianceTask.due_date < date.today(),
+                    ComplianceTask.status.notin_([ComplianceStatus.completed]),
+                )
+            ).label("overdue"),
+        )
+        .outerjoin(ComplianceTask, ComplianceTask.assigned_to == UserModel.id)
+        .where(UserModel.is_active.is_(True))
+        .group_by(UserModel.id, UserModel.full_name)
+        .order_by(func.count(ComplianceTask.id).desc())
+    )
+
+    team_workload = []
+    for row in result.all():
+        completion_rate = (
+            row.completed / row.total if row.total > 0 else 0.0
+        )
+        team_workload.append({
+            "user_id": str(row.id),
+            "name": row.full_name,
+            "total_tasks": row.total,
+            "completed": row.completed,
+            "pending": row.pending,
+            "in_progress": row.in_progress,
+            "overdue": row.overdue,
+            "completion_rate": round(completion_rate, 4),
+        })
+
+    return {"team": team_workload}

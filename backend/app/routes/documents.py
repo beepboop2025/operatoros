@@ -157,6 +157,138 @@ async def upload_document(
 
 
 # --------------------------------------------------------------------------- #
+#  POST /bulk-upload — Upload multiple documents
+# --------------------------------------------------------------------------- #
+
+
+@router.post(
+    "/bulk-upload",
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload multiple documents at once (max 100)",
+)
+async def bulk_upload_documents(
+    request: Request,
+    files: list[UploadFile] = File(...),
+    client_id: uuid.UUID = Form(...),
+    doc_type: str = Form("other"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Upload multiple files in a single request.
+
+    Returns per-file results with success_count and error_count.
+    Max 100 files per request.
+    """
+    if len(files) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 100 files per bulk upload",
+        )
+
+    # Validate client
+    result = await db.execute(select(Client).where(Client.id == client_id))
+    client = result.scalar_one_or_none()
+    if client is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    try:
+        model_doc_type = ModelDocType(doc_type)
+    except ValueError:
+        model_doc_type = ModelDocType.other
+
+    import asyncio
+    import aiofiles
+
+    _CHUNK_SIZE = 256 * 1024
+    semaphore = asyncio.Semaphore(10)
+    results_list = []
+
+    async def process_file(file: UploadFile) -> dict:
+        async with semaphore:
+            try:
+                doc_id = uuid.uuid4()
+                upload_dir = UPLOAD_DIR / str(client_id)
+                upload_dir.mkdir(parents=True, exist_ok=True)
+
+                safe_name = Path(file.filename or "upload").name
+                file_ext = Path(safe_name).suffix
+                file_path = upload_dir / f"{doc_id}{file_ext}"
+
+                total_read = 0
+                async with aiofiles.open(file_path, "wb") as f:
+                    while True:
+                        chunk = await file.read(_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        total_read += len(chunk)
+                        if total_read > MAX_FILE_SIZE:
+                            await f.close()
+                            try:
+                                file_path.unlink(missing_ok=True)
+                            except OSError:
+                                pass
+                            return {
+                                "filename": file.filename,
+                                "success": False,
+                                "error": f"File too large (max {MAX_FILE_SIZE // (1024 * 1024)} MB)",
+                            }
+                        await f.write(chunk)
+
+                document = Document(
+                    id=doc_id,
+                    client_id=client_id,
+                    doc_type=model_doc_type,
+                    original_filename=file.filename or "unknown",
+                    file_url=str(file_path),
+                    file_size=total_read,
+                    status=DocumentStatus.uploaded,
+                    uploaded_by=current_user.id,
+                )
+                db.add(document)
+                await db.flush()
+
+                return {
+                    "filename": file.filename,
+                    "success": True,
+                    "document_id": str(doc_id),
+                }
+            except Exception as exc:
+                return {
+                    "filename": file.filename,
+                    "success": False,
+                    "error": str(exc),
+                }
+
+    results_list = await asyncio.gather(*[process_file(f) for f in files])
+
+    success_count = sum(1 for r in results_list if r["success"])
+    error_count = sum(1 for r in results_list if not r["success"])
+
+    await log_action(
+        db,
+        user_id=current_user.id,
+        action="document.bulk_upload",
+        entity_type="document",
+        details={
+            "client_id": str(client_id),
+            "file_count": len(files),
+            "success_count": success_count,
+            "error_count": error_count,
+        },
+        ip_address=get_client_ip(request),
+    )
+
+    return {
+        "success_count": success_count,
+        "error_count": error_count,
+        "results": results_list,
+    }
+
+
+# --------------------------------------------------------------------------- #
 #  GET / — List documents with pagination
 # --------------------------------------------------------------------------- #
 

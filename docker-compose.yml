@@ -57,6 +57,44 @@ services:
     networks:
       - operatoros-net
 
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: operatoros-celery-worker
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - operatoros-net
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: operatoros-celery-beat
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+    command: celery -A app.celery_app beat --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - operatoros-net
+
   n8n:
     image: n8nio/n8n:latest
     container_name: operatoros-n8n

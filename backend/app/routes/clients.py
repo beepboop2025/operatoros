@@ -10,8 +10,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+import redis.asyncio as aioredis
+
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import get_current_user, get_redis, require_role
 from app.middleware.audit import get_client_ip, log_action
 from app.models.client import Client
 from app.models.compliance import ComplianceStatus, ComplianceTask
@@ -202,6 +204,7 @@ async def create_client(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis_conn: aioredis.Redis = Depends(get_redis),
 ) -> ClientResponse:
     """Create a new client entity. PAN must be unique."""
 
@@ -237,6 +240,12 @@ async def create_client(
         details={"firm_name": body.firm_name, "pan": body.pan},
         ip_address=get_client_ip(request),
     )
+
+    # Invalidate client list caches
+    from app.services.cache import CacheService
+    cache = CacheService(redis_conn)
+    await cache.invalidate_pattern("clients:list:*")
+    await cache.invalidate_pattern("dashboard:*")
 
     return _build_client_response(client)
 

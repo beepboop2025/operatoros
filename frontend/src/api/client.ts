@@ -308,6 +308,44 @@ export interface DashboardStats {
   active_tasks?: number;
   overdue_tasks?: number;
   queries_today?: number;
+  documents_processed?: number;
+  revenue_this_month?: number;
+}
+
+export interface TeamMemberWorkload {
+  user_id: string;
+  name: string;
+  total_tasks: number;
+  completed: number;
+  pending: number;
+  in_progress: number;
+  overdue: number;
+  completion_rate: number;
+}
+
+export interface WorkloadResponse {
+  team: TeamMemberWorkload[];
+}
+
+export interface ComplianceCalendarEvent {
+  task_type: string;
+  description: string;
+  due_date: string;
+  form_name: string;
+  statute: string;
+  notes?: string;
+}
+
+export interface ComplianceCalendarDashboard {
+  statutory_calendar: ComplianceCalendarEvent[];
+  client_tasks: Array<{
+    id: string;
+    client_name: string;
+    task_type: string;
+    due_date: string;
+    status: string;
+    description: string;
+  }>;
 }
 
 export interface ComplianceOverview {
@@ -541,6 +579,22 @@ export const dashboardApi = {
     api.get('/dashboard/compliance-overview').then((r) => r.data),
   recentActivity: (): Promise<RecentActivityResponse | ActivityItem[]> =>
     api.get('/dashboard/recent-activity').then((r) => r.data),
+  complianceCalendar: (months?: number): Promise<ComplianceCalendarDashboard> =>
+    api.get('/dashboard/compliance-calendar', { params: { months: months || 3 } }).then((r) => r.data),
+  workload: (): Promise<WorkloadResponse> =>
+    api.get('/dashboard/workload').then((r) => r.data),
+};
+
+// ── Tasks Status ─────────────────────────────────────────
+export const tasksApi = {
+  getStatus: (taskId: string): Promise<{ task_id: string; status: string; ready: boolean; result?: unknown; error?: string }> =>
+    api.get(`/tasks/${taskId}/status`).then((r) => r.data),
+};
+
+// ── Audit Logs ───────────────────────────────────────────
+export const auditApi = {
+  list: (params?: Record<string, unknown>): Promise<PaginatedResponse<unknown>> =>
+    api.get('/audit', { params }).then((r) => r.data),
 };
 
 export default api;

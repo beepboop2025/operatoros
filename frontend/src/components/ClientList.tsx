@@ -1,4 +1,4 @@
-import { useState, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, FormEvent, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { clientsApi } from '../api/client';
@@ -8,10 +8,18 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   X,
   Loader2,
   Users,
   Building2,
+  Filter,
+  Download,
+  Trash2,
+  UserPlus,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { statusColor } from '../utils/format';
 import { AxiosError } from 'axios';
@@ -201,16 +209,44 @@ function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
   );
 }
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+type SortField = 'firm_name' | 'pan' | 'entity_type' | 'created_at' | 'status';
+type SortDir = 'asc' | 'desc';
+
 export default function ClientList() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState<string>('');
+  const [searchInput, setSearchInput] = useState<string>('');
+  const search = useDebounce(searchInput, 300);
   const [page, setPage] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [filterEntityType, setFilterEntityType] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [sortField, setSortField] = useState<SortField>('firm_name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const pageSize = 20;
 
+  // Reset page when search/filter changes
+  useEffect(() => { setPage(1); }, [search, filterEntityType, filterStatus]);
+
   const { data, isLoading, isError } = useQuery<ClientListResponse | Client[]>({
-    queryKey: ['clients', { search, page, pageSize }],
-    queryFn: () => clientsApi.list({ search, page, page_size: pageSize }),
+    queryKey: ['clients', { search, page, pageSize, filterEntityType, filterStatus }],
+    queryFn: () => {
+      const params: Record<string, unknown> = { search, page, page_size: pageSize };
+      if (filterEntityType) params.entity_type = filterEntityType;
+      if (filterStatus) params.status = filterStatus;
+      return clientsApi.list(params);
+    },
   });
 
   const normalizedData = data as ClientListResponse | undefined;
@@ -218,12 +254,60 @@ export default function ClientList() {
   const total: number = normalizedData?.total || clients.length;
   const totalPages: number = Math.max(1, Math.ceil(total / pageSize));
 
+  // Client-side sorting
+  const sortedClients = [...clients].sort((a, b) => {
+    const aVal = (a[sortField] || '').toString().toLowerCase();
+    const bVal = (b[sortField] || '').toString().toLowerCase();
+    const cmp = aVal.localeCompare(bVal);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sortedClients.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedClients.map(c => c.id)));
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronDown className="w-3 h-3 opacity-30" />;
+    return sortDir === 'asc'
+      ? <ChevronUp className="w-3 h-3 text-blue-400" />
+      : <ChevronDown className="w-3 h-3 text-blue-400" />;
+  };
+
+  const entityTypes = [
+    { value: 'individual', label: 'Individual' },
+    { value: 'huf', label: 'HUF' },
+    { value: 'partnership', label: 'Partnership' },
+    { value: 'llp', label: 'LLP' },
+    { value: 'private_limited', label: 'Pvt. Ltd.' },
+    { value: 'public_limited', label: 'Public Ltd.' },
+    { value: 'trust', label: 'Trust' },
+    { value: 'society', label: 'Society' },
+  ];
+
   const entityLabel = (type: string | undefined): string => {
-    const map: Record<string, string> = {
-      individual: 'Individual', huf: 'HUF', partnership: 'Partnership', llp: 'LLP',
-      private_limited: 'Pvt. Ltd.', public_limited: 'Public Ltd.', trust: 'Trust', society: 'Society',
-    };
-    return map[type ?? ''] || type || '--';
+    const found = entityTypes.find(t => t.value === type);
+    return found?.label || type || '--';
   };
 
   return (
@@ -242,18 +326,102 @@ export default function ClientList() {
         </button>
       </div>
 
-      {/* Search bar */}
-      <div className="card p-4 animate-stagger-2">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by name, PAN, or GSTIN..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
-          />
+      {/* Search bar and filters */}
+      <div className="card p-4 animate-stagger-2 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value)}
+              placeholder="Search by name, PAN, or GSTIN..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-2 px-3 py-2.5 border text-sm font-medium rounded-xl transition-colors ${
+              showFilters || filterEntityType || filterStatus
+                ? 'border-blue-500/30 text-blue-400 bg-blue-500/5'
+                : 'border-white/[0.08] text-slate-300 hover:bg-white/[0.04]'
+            }`}
+          >
+            <Filter className="w-4 h-4" /> Filters
+            {(filterEntityType || filterStatus) && (
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                {[filterEntityType, filterStatus].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <span>{selectedIds.size} selected</span>
+              <button
+                onClick={() => {
+                  // Export selected as CSV
+                  const selected = sortedClients.filter(c => selectedIds.has(c.id));
+                  const csv = ['Name,PAN,GSTIN,Type,Email,Phone']
+                    .concat(selected.map(c =>
+                      `"${c.firm_name || c.name || ''}","${c.pan || ''}","${c.gstin || ''}","${c.entity_type || ''}","${c.email || ''}","${c.phone || ''}"`
+                    )).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = 'clients_export.csv'; a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/5 transition-colors"
+              >
+                <Download className="w-3 h-3" /> Export CSV
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
+
+        {showFilters && (
+          <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-white/[0.04] animate-fade-in">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Entity Type</label>
+              <select
+                value={filterEntityType}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterEntityType(e.target.value)}
+                className="px-3 py-2 rounded-xl text-sm outline-none min-w-[160px]"
+              >
+                <option value="">All Types</option>
+                {entityTypes.map(t => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 rounded-xl text-sm outline-none min-w-[140px]"
+              >
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            {(filterEntityType || filterStatus) && (
+              <button
+                onClick={() => { setFilterEntityType(''); setFilterStatus(''); }}
+                className="self-end px-3 py-2 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Table */}
@@ -279,22 +447,43 @@ export default function ClientList() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Firm Name</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:table-cell">PAN</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell">Entity Type</th>
+                    <th className="px-3 py-3 w-10">
+                      <button onClick={toggleSelectAll} className="text-slate-500 hover:text-slate-300 transition-colors">
+                        {selectedIds.size === sortedClients.length && sortedClients.length > 0
+                          ? <CheckSquare className="w-4 h-4 text-blue-400" />
+                          : <Square className="w-4 h-4" />
+                        }
+                      </button>
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>
+                      <span className="inline-flex items-center gap-1">Firm Name <SortIcon field="firm_name" /></span>
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('pan')}>
+                      <span className="inline-flex items-center gap-1">PAN <SortIcon field="pan" /></span>
+                    </th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell cursor-pointer select-none" onClick={() => toggleSort('entity_type')}>
+                      <span className="inline-flex items-center gap-1">Entity Type <SortIcon field="entity_type" /></span>
+                    </th>
                     <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Contact</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer select-none" onClick={() => toggleSort('status')}>
+                      <span className="inline-flex items-center gap-1">Status <SortIcon field="status" /></span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
-                  {clients.map((client, i) => (
+                  {sortedClients.map((client, i) => (
                     <tr
                       key={client.id}
-                      onClick={() => navigate(`/clients/${client.id}`)}
                       className="row-hover cursor-pointer animate-row"
                       style={{ animationDelay: `${i * 30}ms` }}
                     >
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); toggleSelect(client.id); }}>
+                        {selectedIds.has(client.id)
+                          ? <CheckSquare className="w-4 h-4 text-blue-400" />
+                          : <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
+                        }
+                      </td>
+                      <td className="px-5 py-3" onClick={() => navigate(`/clients/${client.id}`)}>
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-blue-500/15 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
                             {(client.firm_name || client.name || '?')[0].toUpperCase()}

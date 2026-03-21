@@ -52,6 +52,13 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
+    # ── Celery ────────────────────────────────────────────────────────────────
+    CELERY_BROKER_URL: str = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://redis:6379/0"
+
+    # ── PDF ────────────────────────────────────────────────────────────────
+    PDF_OUTPUT_DIR: str = "/app/reports"
+
     # ── Application ──────────────────────────────────────────────────────────
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
