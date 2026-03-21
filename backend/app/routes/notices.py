@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,6 +24,7 @@ from app.schemas.notice import (
     NoticeResponseDraft,
     NoticeType,
 )
+from app.schemas.pagination import paginated_response
 
 router = APIRouter(tags=["notices"])
 
@@ -139,7 +140,6 @@ async def process_notice(
 
 @router.get(
     "/",
-    response_model=list[NoticeResponse],
     summary="List all notices with filters",
 )
 async def list_notices(
@@ -150,22 +150,22 @@ async def list_notices(
     size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[NoticeResponse]:
+) -> dict:
     """Return a paginated list of notices with optional filters."""
 
-    query = (
+    base_query = (
         select(Notice)
         .options(selectinload(Notice.client))
         .order_by(Notice.created_at.desc())
     )
 
     if client_id is not None:
-        query = query.where(Notice.client_id == client_id)
+        base_query = base_query.where(Notice.client_id == client_id)
 
     if status_filter is not None:
         try:
             ns = NoticeStatus(status_filter)
-            query = query.where(Notice.status == ns)
+            base_query = base_query.where(Notice.status == ns)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,20 +175,25 @@ async def list_notices(
     if notice_type is not None:
         try:
             nt = ModelNoticeType(notice_type)
-            query = query.where(Notice.notice_type == nt)
+            base_query = base_query.where(Notice.notice_type == nt)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid notice_type. Must be one of: {[t.value for t in ModelNoticeType]}",
             )
 
-    offset = (page - 1) * size
-    query = query.offset(offset).limit(size)
+    # Total count
+    count_q = select(func.count()).select_from(base_query.subquery())
+    total = (await db.execute(count_q)).scalar_one()
 
-    result = await db.execute(query)
+    offset = (page - 1) * size
+    paged_query = base_query.offset(offset).limit(size)
+
+    result = await db.execute(paged_query)
     notices = result.scalars().all()
 
-    return [_notice_to_response(n) for n in notices]
+    items = [_notice_to_response(n) for n in notices]
+    return paginated_response(items, total, page, size)
 
 
 # --------------------------------------------------------------------------- #

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
 import Login from './components/Login';
@@ -38,6 +38,8 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 }
 
 export default function App() {
+  const location = useLocation();
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -46,17 +48,19 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Layout>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/clients" element={<ClientList />} />
-                <Route path="/clients/:id" element={<ClientDetail />} />
-                <Route path="/compliance" element={<ComplianceCalendar />} />
-                <Route path="/documents" element={<DocumentManager />} />
-                <Route path="/compute" element={<TaxComputer />} />
-                <Route path="/queries" element={<QueryChat />} />
-                <Route path="/notices" element={<NoticeManager />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
+              <div key={location.pathname} className="page-transition">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/clients" element={<ClientList />} />
+                  <Route path="/clients/:id" element={<ClientDetail />} />
+                  <Route path="/compliance" element={<ComplianceCalendar />} />
+                  <Route path="/documents" element={<DocumentManager />} />
+                  <Route path="/compute" element={<TaxComputer />} />
+                  <Route path="/queries" element={<QueryChat />} />
+                  <Route path="/notices" element={<NoticeManager />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
             </Layout>
           </ProtectedRoute>
         }

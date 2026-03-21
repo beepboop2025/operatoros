@@ -139,18 +139,24 @@ async def health_check() -> dict:
     except Exception:
         db_status = "unhealthy"
 
-    # Check Redis
+    # Check Redis — reuse the shared pool from dependency injection
     redis_status = "healthy"
-    r = None
     try:
-        import redis.asyncio as aioredis
-        r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        await r.ping()
+        from app.dependencies import _redis_pool
+        if _redis_pool is not None:
+            await _redis_pool.ping()
+        else:
+            # Pool not yet initialised; create it via the standard path
+            import redis.asyncio as aioredis
+            _pool = aioredis.from_url(
+                settings.REDIS_URL, decode_responses=True, max_connections=20,
+            )
+            try:
+                await _pool.ping()
+            finally:
+                await _pool.aclose()
     except Exception:
         redis_status = "unhealthy"
-    finally:
-        if r is not None:
-            await r.aclose()
 
     overall = "ok" if db_status == "healthy" and redis_status == "healthy" else "degraded"
 

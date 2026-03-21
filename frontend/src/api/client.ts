@@ -230,6 +230,8 @@ export interface LoginResponse {
 export interface PaginatedResponse<T> {
   items?: T[];
   total?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface TaxRegimeResult {
@@ -395,17 +397,40 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Response interceptor: handle 401
+// Response interceptor: handle 401 and add retry for transient failures
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auditmind_token');
       localStorage.removeItem('auditmind_user');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
+      return Promise.reject(error);
     }
+
+    // Automatic retry for transient failures (5xx / network errors)
+    const config = error.config;
+    if (!config) return Promise.reject(error);
+
+    // Only retry GET requests automatically (mutations are retried by TanStack Query)
+    const isRetryable =
+      config.method === 'get' &&
+      (!error.response || error.response.status >= 500) &&
+      !config.__retryCount;
+
+    if (isRetryable) {
+      config.__retryCount = (config.__retryCount || 0) + 1;
+      const MAX_RETRIES = 2;
+
+      if (config.__retryCount <= MAX_RETRIES) {
+        const delay = Math.min(1000 * 2 ** (config.__retryCount - 1), 4000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return api(config);
+      }
+    }
+
     return Promise.reject(error);
   }
 );

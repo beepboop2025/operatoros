@@ -44,6 +44,7 @@ from app.services.tax_engine import (
     compute_interest_234,
     compute_tds,
 )
+from app.utils.cii_table import CIINotFoundError
 
 router = APIRouter(tags=["compute"])
 
@@ -555,7 +556,13 @@ async def compute_capital_gains_endpoint(
     await _validate_client(db, body.client_id)
 
     engine_req = _adapt_capital_gains_request(body.data)
-    engine_result = compute_capital_gains(engine_req)
+    try:
+        engine_result = compute_capital_gains(engine_req)
+    except CIINotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
     result = _adapt_capital_gains_response(engine_result)
 
     record = await _save_computation(

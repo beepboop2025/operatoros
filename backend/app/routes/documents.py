@@ -5,8 +5,10 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
-from sqlalchemy import select
+from typing import Optional
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,6 +23,7 @@ from app.schemas.document import (
     DocumentSearchRequest,
     DocumentSearchResult,
 )
+from app.schemas.pagination import paginated_response
 
 router = APIRouter(tags=["documents"])
 
@@ -93,17 +96,33 @@ async def upload_document(
     file_ext = Path(safe_name).suffix
     file_path = upload_dir / f"{doc_id}{file_ext}"
 
-    content = await file.read()
-
-    # Verify actual content size
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE // (1024 * 1024)} MB",
-        )
+    # Read file in chunks to enforce size limit during streaming.
+    # This prevents loading the entire payload into memory when file.size is
+    # not available (e.g. chunked transfer encoding).
     import aiofiles
+
+    _CHUNK_SIZE = 256 * 1024  # 256 KB per chunk
+    total_read = 0
     async with aiofiles.open(file_path, "wb") as f:
-        await f.write(content)
+        while True:
+            chunk = await file.read(_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_read += len(chunk)
+            if total_read > MAX_FILE_SIZE:
+                # Clean up the partial file before raising
+                await f.close()
+                try:
+                    file_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File too large. Maximum allowed size is {MAX_FILE_SIZE // (1024 * 1024)} MB",
+                )
+            await f.write(chunk)
+
+    content_size = total_read
 
     # Create database record
     document = Document(
@@ -112,7 +131,7 @@ async def upload_document(
         doc_type=model_doc_type,
         original_filename=file.filename or "unknown",
         file_url=str(file_path),
-        file_size=len(content),
+        file_size=content_size,
         status=DocumentStatus.uploaded,
         uploaded_by=current_user.id,
     )
@@ -129,12 +148,56 @@ async def upload_document(
             "filename": file.filename,
             "doc_type": doc_type,
             "client_id": str(client_id),
-            "file_size": len(content),
+            "file_size": content_size,
         },
         ip_address=get_client_ip(request),
     )
 
     return DocumentResponse.model_validate(document)
+
+
+# --------------------------------------------------------------------------- #
+#  GET / — List documents with pagination
+# --------------------------------------------------------------------------- #
+
+
+@router.get(
+    "/",
+    summary="List documents with pagination and optional filters",
+)
+async def list_documents(
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(20, ge=1, le=100, description="Items per page"),
+    client_id: Optional[uuid.UUID] = Query(None, description="Filter by client"),
+    document_type: Optional[str] = Query(None, description="Filter by doc type"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return a paginated list of documents, most recent first."""
+
+    base_query = select(Document).order_by(Document.uploaded_at.desc())
+
+    if client_id is not None:
+        base_query = base_query.where(Document.client_id == client_id)
+
+    if document_type is not None:
+        try:
+            model_dt = ModelDocType(document_type)
+            base_query = base_query.where(Document.doc_type == model_dt)
+        except ValueError:
+            pass  # ignore invalid filter gracefully
+
+    # Total count
+    count_q = select(func.count()).select_from(base_query.subquery())
+    total = (await db.execute(count_q)).scalar_one()
+
+    offset = (page - 1) * size
+    paged_query = base_query.offset(offset).limit(size)
+    result = await db.execute(paged_query)
+    docs = result.scalars().all()
+
+    items = [DocumentResponse.model_validate(d) for d in docs]
+    return paginated_response(items, total, page, size)
 
 
 # --------------------------------------------------------------------------- #

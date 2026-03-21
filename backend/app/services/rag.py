@@ -17,10 +17,30 @@ from uuid import UUID
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException, status as http_status
+
 from app.services.embedding import EmbeddingService
 from app.services.openrouter import OpenRouterClient
 
 logger = logging.getLogger(__name__)
+
+
+# ── Custom exceptions for error classification ───────────────────────────────
+
+class RAGEmbeddingError(Exception):
+    """Raised when the embedding service fails."""
+
+
+class RAGLLMError(Exception):
+    """Raised when the LLM service fails."""
+
+
+class RAGDocumentNotFoundError(Exception):
+    """Raised when a referenced document cannot be found."""
+
+
+class RAGInvalidQueryError(Exception):
+    """Raised when the query is invalid or too short."""
 
 # ── System prompts per query type ────────────────────────────────────────────
 
@@ -109,12 +129,28 @@ class RAGService:
         """
         start = datetime.now(timezone.utc)
 
+        # Validate query
+        if not question or not question.strip():
+            raise RAGInvalidQueryError("Query must not be empty.")
+        if len(question.strip()) < 3:
+            raise RAGInvalidQueryError("Query is too short. Please provide more detail.")
+
         # Step 1: Classify query
-        query_type = await self._classify_query(question)
-        logger.info("Query classified as: %s", query_type)
+        try:
+            query_type = await self._classify_query(question)
+            logger.info("Query classified as: %s", query_type)
+        except Exception as exc:
+            logger.warning("Query classification failed, defaulting to 'factual': %s", exc)
+            query_type = "factual"
 
         # Step 2: Generate embedding for the question
-        question_embedding = await self.embedding.generate_embedding(question)
+        try:
+            question_embedding = await self.embedding.generate_embedding(question)
+        except Exception as exc:
+            logger.error("Embedding generation failed: %s", exc)
+            raise RAGEmbeddingError(
+                f"Embedding service unavailable: {exc}"
+            ) from exc
 
         # Step 3: Vector search
         relevant_docs = await self._vector_search(
@@ -148,12 +184,18 @@ class RAGService:
 
         # Step 6: Call LLM with task-appropriate model
         model = self.llm.select_model(query_type)
-        llm_result = await self.llm.chat_completion(
-            messages=messages,
-            model=model,
-            temperature=0.2 if query_type == "computation" else 0.3,
-            max_tokens=4096,
-        )
+        try:
+            llm_result = await self.llm.chat_completion(
+                messages=messages,
+                model=model,
+                temperature=0.2 if query_type == "computation" else 0.3,
+                max_tokens=4096,
+            )
+        except Exception as exc:
+            logger.error("LLM call failed: %s", exc)
+            raise RAGLLMError(
+                f"LLM service unavailable: {exc}"
+            ) from exc
 
         # Step 7: Parse response
         response_text = llm_result["text"]

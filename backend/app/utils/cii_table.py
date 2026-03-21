@@ -44,31 +44,43 @@ CII_TABLE: Dict[str, int] = {
 }
 
 
-def get_cii(fy: str) -> Optional[int]:
+class CIINotFoundError(ValueError):
+    """Raised when a CII value is not available for the requested financial year."""
+
+    def __init__(self, fy: str) -> None:
+        self.fy = fy
+        available = sorted(CII_TABLE.keys())
+        super().__init__(
+            f"CII data not available for FY {fy}. "
+            f"Available range: {available[0]} to {available[-1]}."
+        )
+
+
+def get_cii(fy: str) -> int:
     """Return the CII value for a financial year string like '2023-24'.
 
-    Returns ``None`` if the FY is not in the table.
+    Raises ``CIINotFoundError`` if the FY is not in the table.
     """
-    return CII_TABLE.get(fy)
+    value = CII_TABLE.get(fy)
+    if value is None:
+        raise CIINotFoundError(fy)
+    return value
 
 
 def compute_indexed_cost(
     cost: Decimal,
     purchase_fy: str,
     sale_fy: str,
-) -> Optional[Decimal]:
+) -> Decimal:
     """Compute indexed cost of acquisition.
 
     Formula:
-        indexed_cost = cost × (CII of sale FY / CII of purchase FY)
+        indexed_cost = cost * (CII of sale FY / CII of purchase FY)
 
-    Returns ``None`` if either FY is missing from the CII table.
+    Raises ``CIINotFoundError`` if either FY is missing from the CII table.
     """
-    cii_purchase = CII_TABLE.get(purchase_fy)
-    cii_sale = CII_TABLE.get(sale_fy)
-
-    if cii_purchase is None or cii_sale is None:
-        return None
+    cii_purchase = get_cii(purchase_fy)
+    cii_sale = get_cii(sale_fy)
 
     indexed = cost * Decimal(str(cii_sale)) / Decimal(str(cii_purchase))
     return indexed.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

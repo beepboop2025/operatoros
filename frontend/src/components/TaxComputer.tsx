@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { computeApi } from '../api/client';
+import { useToast } from './Toast';
 import type {
   IncomeTaxRequest,
   IncomeTaxDeductions,
@@ -149,6 +150,7 @@ function ResultRow({ label, value, bold, highlight, indent }: ResultRowProps) {
 
 // ─── INCOME TAX TAB ───────────────────────────────────────────
 function IncomeTaxTab() {
+  const toast = useToast();
   const [showDeductions, setShowDeductions] = useState<boolean>(false);
   const [form, setForm] = useState<IncomeTaxRequest>({
     assessment_year: getAssessmentYears()[0],
@@ -174,7 +176,9 @@ function IncomeTaxTab() {
   });
 
   const mutation = useMutation<IncomeTaxResponse, Error, IncomeTaxRequest>({
-    mutationFn: computeApi.tax,
+    mutationFn: (data) => computeApi.tax(data),
+    onSuccess: () => toast.success('Tax computation completed successfully'),
+    onError: (err) => toast.error(`Tax computation failed: ${err.message}`),
   });
 
   const update = (field: keyof Omit<IncomeTaxRequest, 'deductions'>, value: string | number) =>
@@ -367,13 +371,18 @@ function IncomeTaxTab() {
 
 // ─── TDS TAB ──────────────────────────────────────────────────
 function TDSTab() {
+  const toast = useToast();
   const [form, setForm] = useState<TDSRequest>({
     payment_type: 'salary',
     amount: 0,
     pan_available: true,
   });
 
-  const mutation = useMutation<TDSResponse, Error, TDSRequest>({ mutationFn: computeApi.tds });
+  const mutation = useMutation<TDSResponse, Error, TDSRequest>({
+    mutationFn: (data) => computeApi.tds(data),
+    onSuccess: () => toast.success('TDS computed successfully'),
+    onError: (err) => toast.error(`TDS computation failed: ${err.message}`),
+  });
 
   const paymentTypes: SelectOption[] = [
     { value: 'salary', label: 'Salary (192)' },
@@ -446,6 +455,7 @@ function TDSTab() {
 
 // ─── GST TAB ──────────────────────────────────────────────────
 function GSTTab() {
+  const toast = useToast();
   const [form, setForm] = useState<GSTRequest>({
     supply_type: 'goods',
     hsn_sac: '',
@@ -455,7 +465,11 @@ function GSTTab() {
     gst_rate: 18,
   });
 
-  const mutation = useMutation<GSTResponse, Error, GSTRequest>({ mutationFn: computeApi.gst });
+  const mutation = useMutation<GSTResponse, Error, GSTRequest>({
+    mutationFn: (data) => computeApi.gst(data),
+    onSuccess: () => toast.success('GST computed successfully'),
+    onError: (err) => toast.error(`GST computation failed: ${err.message}`),
+  });
 
   const gstRates: number[] = [0, 0.25, 3, 5, 12, 18, 28];
 
@@ -546,6 +560,7 @@ function GSTTab() {
 
 // ─── CAPITAL GAINS TAB ────────────────────────────────────────
 function CapitalGainsTab() {
+  const toast = useToast();
   const [form, setForm] = useState<CapitalGainsRequest>({
     asset_type: 'equity_shares',
     purchase_date: '',
@@ -555,7 +570,11 @@ function CapitalGainsTab() {
     improvement_cost: 0,
   });
 
-  const mutation = useMutation<CapitalGainsResponse, Error, CapitalGainsRequest>({ mutationFn: computeApi.capitalGains });
+  const mutation = useMutation<CapitalGainsResponse, Error, CapitalGainsRequest>({
+    mutationFn: (data) => computeApi.capitalGains(data),
+    onSuccess: () => toast.success('Capital gains computed successfully'),
+    onError: (err) => toast.error(`Capital gains computation failed: ${err.message}`),
+  });
 
   const assetTypes: SelectOption[] = [
     { value: 'equity_shares', label: 'Listed Equity Shares' },
@@ -646,6 +665,7 @@ function CapitalGainsTab() {
 
 // ─── INTEREST TAB ─────────────────────────────────────────────
 function InterestTab() {
+  const toast = useToast();
   const [form, setForm] = useState<InterestRequest>({
     section: '234b',
     tax_liability: 0,
@@ -654,7 +674,11 @@ function InterestTab() {
     payment_date: '',
   });
 
-  const mutation = useMutation<InterestResponse, Error, InterestRequest>({ mutationFn: computeApi.interest });
+  const mutation = useMutation<InterestResponse, Error, InterestRequest>({
+    mutationFn: (data) => computeApi.interest(data),
+    onSuccess: () => toast.success('Interest computed successfully'),
+    onError: (err) => toast.error(`Interest computation failed: ${err.message}`),
+  });
 
   const sections: SelectOption[] = [
     { value: '234a', label: '234A - Delay in Filing Return' },
@@ -740,6 +764,7 @@ function InterestTab() {
 
 // ─── HRA TAB ──────────────────────────────────────────────────
 function HRATab() {
+  const toast = useToast();
   const [form, setForm] = useState<HRARequest>({
     basic_salary: 0,
     da: 0,
@@ -748,7 +773,11 @@ function HRATab() {
     is_metro: true,
   });
 
-  const mutation = useMutation<HRAResponse, Error, HRARequest>({ mutationFn: computeApi.hra });
+  const mutation = useMutation<HRAResponse, Error, HRARequest>({
+    mutationFn: (data) => computeApi.hra(data),
+    onSuccess: () => toast.success('HRA exemption computed successfully'),
+    onError: (err) => toast.error(`HRA computation failed: ${err.message}`),
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -861,7 +890,7 @@ export default function TaxComputer() {
       </div>
 
       {/* Active tab content */}
-      <div className="card p-6 animate-stagger-3">
+      <div key={activeTab} className="card p-6 tab-content-enter">
         <ActiveComponent />
       </div>
     </div>

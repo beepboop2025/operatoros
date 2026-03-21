@@ -6,16 +6,29 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import logging
+
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_redis
 from app.middleware.audit import get_client_ip, log_action
 from app.models.client import Client
 from app.models.query import Query as QueryModel
 from app.models.user import User
 from app.schemas.query import QueryRequest, QueryResponse
+from app.schemas.pagination import paginated_response
+from app.services.embedding import EmbeddingService
+from app.services.openrouter import OpenRouterClient
+from app.services.rag import (
+    RAGService,
+    RAGEmbeddingError,
+    RAGInvalidQueryError,
+    RAGLLMError,
+)
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["queries"])
 
@@ -39,9 +52,9 @@ async def submit_query(
 ) -> QueryResponse:
     """Submit a tax or compliance query for processing.
 
-    This is the main RAG endpoint. Currently operates in placeholder mode:
-    the query is saved to the database and a structured response indicates
-    that the RAG pipeline will process it asynchronously.
+    Runs the full RAG pipeline: classify -> embed -> vector search -> LLM.
+    Falls back to a placeholder if the external services (embedding / LLM)
+    are unavailable.
     """
 
     # Validate client if provided
@@ -55,20 +68,75 @@ async def submit_query(
                 detail="Client not found",
             )
 
-    # Create the query record with placeholder response
+    # ── Attempt full RAG pipeline ────────────────────────────────────────
+    rag_result = None
+    try:
+        # Build service instances (Redis is optional for embedding cache)
+        redis_conn = None
+        try:
+            from app.dependencies import _redis_pool
+            redis_conn = _redis_pool
+        except Exception:
+            pass
+
+        embedding_svc = EmbeddingService(redis=redis_conn)
+        openrouter_client = OpenRouterClient()
+        rag_svc = RAGService(db=db, embedding_service=embedding_svc, openrouter=openrouter_client)
+
+        rag_result = await rag_svc.answer_query(
+            question=body.question,
+            client_id=body.client_id,
+            context=body.context if hasattr(body, "context") else None,
+        )
+    except RAGInvalidQueryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except RAGEmbeddingError as exc:
+        _logger.warning("RAG embedding failed, falling back to placeholder: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Embedding service unavailable: {exc}",
+        )
+    except RAGLLMError as exc:
+        _logger.warning("RAG LLM failed, falling back to placeholder: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"LLM service unavailable: {exc}",
+        )
+    except Exception as exc:
+        _logger.error("RAG pipeline unexpected error: %s", exc, exc_info=True)
+        # Fall back to placeholder so the user at least gets a record saved
+        rag_result = None
+
+    # ── Build response fields ────────────────────────────────────────────
+    if rag_result is not None:
+        response_text = rag_result["response"]
+        sources_cited = rag_result.get("sources", [])
+        query_type = rag_result.get("query_type", "general")
+        model_used = rag_result.get("model_used", "unknown")
+        tokens_used = rag_result.get("tokens_used", 0)
+    else:
+        response_text = (
+            "Your query has been received but the AI service is temporarily "
+            "unavailable. Please try again shortly."
+        )
+        sources_cited = []
+        query_type = "general"
+        model_used = "placeholder"
+        tokens_used = 0
+
+    # ── Persist ──────────────────────────────────────────────────────────
     query_record = QueryModel(
         client_id=body.client_id,
         asked_by=current_user.id,
         question=body.question,
-        response=(
-            "Your query has been received and will be processed by the RAG pipeline. "
-            "The system will analyze relevant documents, tax laws, and compliance "
-            "guidelines to provide a comprehensive response. Please check back shortly."
-        ),
-        sources_cited=[],
-        query_type="general",
-        model_used="placeholder",
-        tokens_used=0,
+        response=response_text,
+        sources_cited=sources_cited,
+        query_type=query_type,
+        model_used=model_used,
+        tokens_used=tokens_used,
     )
     db.add(query_record)
     await db.flush()
@@ -82,6 +150,7 @@ async def submit_query(
         details={
             "question_preview": body.question[:100],
             "client_id": str(body.client_id) if body.client_id else None,
+            "rag_active": rag_result is not None,
         },
         ip_address=get_client_ip(request),
     )
@@ -90,10 +159,10 @@ async def submit_query(
         id=query_record.id,
         question=query_record.question,
         response=query_record.response,
-        sources_cited=[],
-        query_type="general",
-        model_used="placeholder",
-        tokens_used=0,
+        sources_cited=sources_cited if isinstance(sources_cited, list) else [],
+        query_type=query_type,
+        model_used=model_used,
+        tokens_used=tokens_used,
         asked_by=query_record.asked_by,
         client_id=query_record.client_id,
         created_at=query_record.created_at,
@@ -107,7 +176,6 @@ async def submit_query(
 
 @router.get(
     "/",
-    response_model=list[QueryResponse],
     summary="List recent queries with pagination",
 )
 async def list_queries(
@@ -116,21 +184,25 @@ async def list_queries(
     client_id: Optional[uuid.UUID] = Query(None, description="Filter by client"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[QueryResponse]:
+) -> dict:
     """Return a paginated list of queries, most recent first."""
 
-    query = select(QueryModel).order_by(QueryModel.created_at.desc())
+    base_query = select(QueryModel).order_by(QueryModel.created_at.desc())
 
     if client_id is not None:
-        query = query.where(QueryModel.client_id == client_id)
+        base_query = base_query.where(QueryModel.client_id == client_id)
+
+    # Total count
+    count_q = select(func.count()).select_from(base_query.subquery())
+    total = (await db.execute(count_q)).scalar_one()
 
     offset = (page - 1) * size
-    query = query.offset(offset).limit(size)
+    paginated_query = base_query.offset(offset).limit(size)
 
-    result = await db.execute(query)
+    result = await db.execute(paginated_query)
     records = result.scalars().all()
 
-    return [
+    items = [
         QueryResponse(
             id=r.id,
             question=r.question,
@@ -145,6 +217,8 @@ async def list_queries(
         )
         for r in records
     ]
+
+    return paginated_response(items, total, page, size)
 
 
 # --------------------------------------------------------------------------- #

@@ -67,7 +67,7 @@ from app.utils.tax_constants import (
     SlabTable,
     INF,
 )
-from app.utils.cii_table import compute_indexed_cost, get_cii
+from app.utils.cii_table import CIINotFoundError, compute_indexed_cost, get_cii
 from app.utils.tds_rates import (
     TDS_RATES,
     lookup_tds_section,
@@ -626,9 +626,29 @@ def _compute_regime(
     # Simplified approach: surcharge on total tax
     surcharge = _q(tax_after_rebate * surcharge_rate)
 
-    # Marginal relief (simplified)
+    # ---- Marginal Relief (Section 87A(2)) ----
+    # Principle: when income marginally exceeds a surcharge threshold,
+    # total tax + surcharge must not exceed (tax at threshold + excess income).
+    # Apply at each surcharge threshold to find the best relief.
     marginal_applied = False
     marginal_amount = _ZERO
+
+    if surcharge > _ZERO:
+        # Identify which threshold was just crossed
+        surcharge_thresholds = [lower for lower, _upper, rate in surcharge_slabs if rate > _ZERO]
+        for threshold in surcharge_thresholds:
+            if total_income_for_surcharge > threshold:
+                adjusted, relief, applied = _apply_marginal_relief(
+                    income=total_income_for_surcharge,
+                    tax_before_surcharge=tax_after_rebate,
+                    surcharge=surcharge,
+                    surcharge_threshold=threshold,
+                    slabs=slabs,
+                )
+                if applied and relief > marginal_amount:
+                    surcharge = adjusted
+                    marginal_amount = relief
+                    marginal_applied = True
 
     # ---- Cess ----
     cess = _q((tax_after_rebate + surcharge) * CESS_RATE)
@@ -954,12 +974,17 @@ def compute_capital_gains(request: CapitalGainsRequest) -> CapitalGainsResponse:
             AssetType.other,
         ):
             # Option A: 20% with indexation
-            indexed_cost = compute_indexed_cost(
-                request.purchase_cost, purchase_fy, sale_fy
-            )
-            indexed_improvement = compute_indexed_cost(
-                request.improvement_cost, purchase_fy, sale_fy
-            ) if request.improvement_cost > _ZERO else _ZERO
+            try:
+                indexed_cost = compute_indexed_cost(
+                    request.purchase_cost, purchase_fy, sale_fy
+                )
+                indexed_improvement = compute_indexed_cost(
+                    request.improvement_cost, purchase_fy, sale_fy
+                ) if request.improvement_cost > _ZERO else _ZERO
+            except CIINotFoundError:
+                # CII data not available for the given FY — skip indexation option
+                indexed_cost = None
+                indexed_improvement = _ZERO
 
             if indexed_cost is not None:
                 gain_with_idx = net_sale - indexed_cost - (indexed_improvement or _ZERO)

@@ -183,7 +183,7 @@ async def list_clients(
         ))
         items.append(_build_client_response(c, stats))
 
-    return ClientListResponse(items=items, total=total)
+    return ClientListResponse(items=items, total=total, page=page, page_size=size)
 
 
 # --------------------------------------------------------------------------- #

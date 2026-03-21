@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, ChangeEvent, DragEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { documentsApi, clientsApi } from '../api/client';
+import { useToast } from './Toast';
 import type {
   Client,
   Document as DocType,
@@ -69,10 +70,16 @@ export default function DocumentManager() {
   const normalizedClients = clients as ClientListResponse | undefined;
   const clientList: Client[] = normalizedClients?.items || normalizedClients?.clients || (Array.isArray(clients) ? clients : []);
 
+  const toast = useToast();
+
   const uploadMutation = useMutation({
     mutationFn: (file: File) => documentsApi.upload(file, uploadClient || undefined, uploadDocType || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      toast.success('Document uploaded successfully');
+    },
+    onError: (err: Error) => {
+      toast.error(`Upload failed: ${err.message}`);
     },
   });
 
