@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     DEFAULT_LLM_MODEL: str = "anthropic/claude-sonnet-4-20250514"
 
+    # ── Free LLM router (perpetually-free providers) ───────────────────────────
+    # When true, low-stakes task types (classification/factual/bulk) are served by
+    # free providers first, falling back to paid OpenRouter only if all free
+    # providers fail. High-stakes advisory/drafting always prefers paid for quality.
+    FREE_LLM_ENABLED: bool = True
+    GROQ_API_KEY: str = ""
+    CEREBRAS_API_KEY: str = ""
+    GOOGLE_AI_STUDIO_API_KEY: str = ""
+    MISTRAL_API_KEY: str = ""
+
     # ── n8n ──────────────────────────────────────────────────────────────────
     N8N_WEBHOOK_URL: str = "http://n8n:5678"
 
