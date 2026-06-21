@@ -435,6 +435,18 @@ async def submit_notice_response(
             detail="Notice not found",
         )
 
+    # Authorisation: only an admin, the assignee, or a user in the same firm as
+    # the notice's client may file a response (prevents IDOR via notice id).
+    if (
+        current_user.role.value != "admin"
+        and notice.assigned_to != current_user.id
+        and (notice.client is None or notice.client.firm_id != current_user.firm_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notice not found",
+        )
+
     notice.filed_response = body.response_text
     notice.status = NoticeStatus.response_filed
     await db.flush()

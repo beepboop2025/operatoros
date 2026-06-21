@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
 from app.middleware.audit import get_client_ip, log_action
-from app.middleware.auth import create_access_token, hash_password, verify_password, verify_token
+from app.middleware.auth import create_access_token, create_refresh_token, hash_password, verify_password, verify_token
 from app.models.user import User, UserRole
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserResponseNested
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
@@ -51,6 +51,7 @@ async def login(
         )
 
     token = create_access_token({"sub": user.id, "role": user.role.value})
+    refresh = create_refresh_token({"sub": user.id, "role": user.role.value})
 
     await log_action(
         db,
@@ -63,6 +64,7 @@ async def login(
 
     return TokenResponse(
         access_token=token,
+        refresh_token=refresh,
         user=UserResponseNested(
             id=user.id,
             email=user.email,
@@ -92,7 +94,7 @@ async def refresh_access_token(
     The refresh token is verified using the same JWT secret and algorithm as
     access tokens. A new token is returned along with the user's profile.
     """
-    payload = verify_token(body.refresh_token)
+    payload = verify_token(body.refresh_token, expected_type="refresh")
 
     result = await db.execute(select(User).where(User.id == payload.sub))
     user = result.scalar_one_or_none()
@@ -109,9 +111,12 @@ async def refresh_access_token(
         )
 
     new_token = create_access_token({"sub": user.id, "role": user.role.value})
+    # Rotate the refresh token on every use.
+    new_refresh = create_refresh_token({"sub": user.id, "role": user.role.value})
 
     return TokenResponse(
         access_token=new_token,
+        refresh_token=new_refresh,
         user=UserResponseNested(
             id=user.id,
             email=user.email,

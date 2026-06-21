@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_current_user
 from app.main import app
-from app.middleware.auth import create_access_token
+from app.middleware.auth import create_access_token, create_refresh_token
 
 
 def _fake_user():
@@ -47,7 +47,7 @@ def test_refresh_token_returns_new_access_token(client):
     from app.database import get_db
 
     user = _fake_user()
-    refresh_token = create_access_token({"sub": user.id, "role": user.role.value})
+    refresh_token = create_refresh_token({"sub": user.id, "role": user.role.value})
 
     app.dependency_overrides[get_db] = lambda: _fake_db(user=user)
 
@@ -58,6 +58,7 @@ def test_refresh_token_returns_new_access_token(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["access_token"]
+    assert data["refresh_token"]
     assert data["token_type"] == "bearer"
     assert data["user"]["id"] == str(user.id)
 
@@ -72,12 +73,24 @@ def test_refresh_token_rejects_invalid_token(client):
     assert resp.status_code == 401
 
 
+def test_refresh_endpoint_rejects_access_token(client):
+    """An access token must not be usable as a refresh token (type mismatch)."""
+    user = _fake_user()
+    access_token = create_access_token({"sub": user.id, "role": user.role.value})
+
+    resp = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": access_token},
+    )
+    assert resp.status_code == 401
+
+
 def test_refresh_token_rejects_inactive_user(client):
     from app.database import get_db
 
     user = _fake_user()
     user.is_active = False
-    refresh_token = create_access_token({"sub": user.id, "role": user.role.value})
+    refresh_token = create_refresh_token({"sub": user.id, "role": user.role.value})
 
     app.dependency_overrides[get_db] = lambda: _fake_db(user=user)
 

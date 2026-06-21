@@ -62,7 +62,10 @@ def client():
 def test_submit_response_updates_notice(client):
     from app.database import get_db
 
+    user = _fake_user()
     notice = _fake_notice()
+    notice.assigned_to = user.id
+    app.dependency_overrides[get_current_user] = lambda: user
     app.dependency_overrides[get_db] = lambda: _fake_db(notice=notice)
 
     resp = client.post(

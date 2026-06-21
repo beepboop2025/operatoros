@@ -27,6 +27,7 @@ def _fake_document(file_url: str, original_filename: str):
     return SimpleNamespace(
         id=uuid.uuid4(),
         client_id=uuid.uuid4(),
+        client=None,
         doc_type=SimpleNamespace(value="notice"),
         original_filename=original_filename,
         file_url=file_url,
@@ -68,7 +69,10 @@ def test_download_document_streams_file(client, tmp_path, monkeypatch):
     file_path = tmp_path / f"{doc_id}.txt"
     file_path.write_text("hello world")
 
+    user = _fake_user()
     document = _fake_document(str(file_path), "original.txt")
+    document.uploaded_by = user.id
+    app.dependency_overrides[get_current_user] = lambda: user
     app.dependency_overrides[get_db] = lambda: _fake_db(document=document)
 
     resp = client.get(f"/api/documents/{doc_id}/download")
