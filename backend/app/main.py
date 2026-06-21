@@ -117,6 +117,7 @@ _ROUTER_CONFIG: list[tuple[str, str, str]] = [
     ("app.routes.audit", "router", "/api/audit"),
     ("app.routes.tasks_status", "router", "/api/tasks"),
     ("app.routes.firms", "router", "/api/firms"),
+    ("app.routes.nri", "router", "/api/nri"),
 ]
 
 
