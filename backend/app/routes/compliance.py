@@ -332,12 +332,13 @@ async def list_overdue_tasks(
     summary="Generate compliance calendar for a client",
 )
 async def generate_calendar(
+    *,
     client_id: uuid.UUID = Query(..., description="Client ID"),
     fy: str = Query(..., description="Financial year, e.g. '2025-26'"),
-    audit_applicable: bool = Query(False, description="Whether tax audit applies"),
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    audit_applicable: bool = Query(False, description="Whether tax audit applies"),
 ) -> list[dict]:
     """Generate a compliance calendar for the given client and financial year.
 
