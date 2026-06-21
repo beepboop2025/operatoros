@@ -22,6 +22,7 @@ from app.schemas.notice import (
     NoticeProcessRequest,
     NoticeResponse,
     NoticeResponseDraft,
+    NoticeSubmitResponseRequest,
     NoticeType,
 )
 from app.schemas.pagination import paginated_response
@@ -400,3 +401,52 @@ async def draft_notice_response(
         legal_references=[],
         recommended_actions=[],
     )
+
+
+# --------------------------------------------------------------------------- #
+#  POST /{notice_id}/submit-response — Persist a filed response
+# --------------------------------------------------------------------------- #
+
+
+@router.post(
+    "/{notice_id}/submit-response",
+    response_model=NoticeResponse,
+    summary="Submit a filed response for a notice",
+)
+async def submit_notice_response(
+    notice_id: uuid.UUID,
+    body: NoticeSubmitResponseRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> NoticeResponse:
+    """Persist a filed response against a notice and mark it as response_filed."""
+
+    result = await db.execute(
+        select(Notice)
+        .options(selectinload(Notice.client))
+        .where(Notice.id == notice_id)
+    )
+    notice = result.scalar_one_or_none()
+
+    if notice is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notice not found",
+        )
+
+    notice.filed_response = body.response_text
+    notice.status = NoticeStatus.response_filed
+    await db.flush()
+
+    await log_action(
+        db,
+        user_id=current_user.id,
+        action="notice.submit_response",
+        entity_type="notice",
+        entity_id=notice.id,
+        details={"response_length": len(body.response_text)},
+        ip_address=get_client_ip(request),
+    )
+
+    return _notice_to_response(notice)

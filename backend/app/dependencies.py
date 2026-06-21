@@ -11,7 +11,7 @@ from uuid import UUID
 
 import redis.asyncio as aioredis
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +21,10 @@ from app.middleware.auth import verify_token
 from app.models.user import User
 from app.schemas.auth import TokenPayload
 
-# ── Security scheme ──────────────────────────────────────────────────────────
+# ── Security schemes ─────────────────────────────────────────────────────────
 
 _bearer_scheme = HTTPBearer(auto_error=True)
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 # ── Redis ────────────────────────────────────────────────────────────────────
 
@@ -155,3 +156,48 @@ class RateLimiter:
         pipe2.zadd(key, {str(now): now})
         pipe2.expire(key, self.window_seconds + 1)
         await pipe2.execute()
+
+
+# ── Optional user + API-key auth (for service-to-service ingest endpoints) ───
+
+
+async def get_current_user_optional(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """Return the current user if a valid bearer token is supplied, else None."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    try:
+        payload = verify_token(auth_header[7:])
+    except HTTPException:
+        return None
+
+    result = await db.execute(select(User).where(User.id == payload.sub))
+    user = result.scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    return user
+
+
+async def require_api_key_or_admin(
+    api_key: str | None = Depends(_api_key_header),
+    current_user: User | None = Depends(get_current_user_optional),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """Allow admin users or requests bearing the configured ingest API key."""
+    if current_user is not None and current_user.role.value == "admin":
+        return
+
+    if (
+        api_key
+        and settings.INGEST_API_KEY
+        and api_key == settings.INGEST_API_KEY
+    ):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Valid API key or admin role required",
+    )

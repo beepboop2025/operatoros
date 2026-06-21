@@ -37,3 +37,9 @@ class TokenPayload(BaseModel):
     sub: UUID
     role: str
     exp: datetime
+
+
+class RefreshRequest(BaseModel):
+    """Request a new access token from a valid refresh token."""
+
+    refresh_token: str

@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
 from app.middleware.audit import get_client_ip, log_action
-from app.middleware.auth import create_access_token, hash_password, verify_password
+from app.middleware.auth import create_access_token, hash_password, verify_password, verify_token
 from app.models.user import User, UserRole
-from app.schemas.auth import LoginRequest, TokenResponse, UserResponseNested
+from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserResponseNested
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(tags=["auth"])
@@ -63,6 +63,55 @@ async def login(
 
     return TokenResponse(
         access_token=token,
+        user=UserResponseNested(
+            id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            role=user.role.value,
+            is_active=user.is_active,
+        ),
+    )
+
+
+# --------------------------------------------------------------------------- #
+#  POST /refresh
+# --------------------------------------------------------------------------- #
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Refresh access token",
+)
+async def refresh_access_token(
+    body: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Issue a new access token from a valid refresh token.
+
+    The refresh token is verified using the same JWT secret and algorithm as
+    access tokens. A new token is returned along with the user's profile.
+    """
+    payload = verify_token(body.refresh_token)
+
+    result = await db.execute(select(User).where(User.id == payload.sub))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive account",
+        )
+
+    new_token = create_access_token({"sub": user.id, "role": user.role.value})
+
+    return TokenResponse(
+        access_token=new_token,
         user=UserResponseNested(
             id=user.id,
             email=user.email,
