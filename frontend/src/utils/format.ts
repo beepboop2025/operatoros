@@ -43,21 +43,6 @@ export function formatCurrency(amount: number | string | null | undefined, decim
 }
 
 /**
- * Format currency in lakhs/crores for large numbers
- */
-export function formatCurrencyShort(amount: number | string | null | undefined): string {
-  if (amount == null || isNaN(Number(amount))) return '\u20B90';
-  const n = Number(amount);
-  const abs = Math.abs(n);
-  const sign = n < 0 ? '-' : '';
-
-  if (abs >= 1e7) return `${sign}\u20B9${(abs / 1e7).toFixed(2)} Cr`;
-  if (abs >= 1e5) return `${sign}\u20B9${(abs / 1e5).toFixed(2)} L`;
-  if (abs >= 1e3) return `${sign}\u20B9${formatIndianNumber(Math.round(abs))}`;
-  return `${sign}\u20B9${abs.toFixed(0)}`;
-}
-
-/**
  * Format date as DD/MM/YYYY (Indian standard)
  */
 export function formatDate(date: string | Date | null | undefined): string {

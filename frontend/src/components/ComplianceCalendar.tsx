@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { complianceApi, clientsApi } from '../api/client';
+import { complianceApi, clientsApi, getErrorMessage } from '../api/client';
 import type {
   Client,
   ComplianceTask,
@@ -169,7 +169,7 @@ export default function ComplianceCalendar() {
           </div>
           {generateMutation.isError && (
             <p className="text-sm text-red-400 mt-2">
-              {(generateMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to generate calendar'}
+              {getErrorMessage(generateMutation.error, 'Failed to generate calendar')}
             </p>
           )}
           {generateMutation.isSuccess && (

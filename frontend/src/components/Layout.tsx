@@ -166,7 +166,6 @@ export default function Layout({ children }: LayoutProps) {
             {/* Notification bell */}
             <button className="relative p-2 text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] rounded-xl transition-all">
               <Bell className="w-[18px] h-[18px]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full notification-dot shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
             </button>
 
             {/* User menu */}

@@ -1,11 +1,12 @@
 import { useState, useRef, ChangeEvent, ReactElement } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { noticesApi, documentsApi } from '../api/client';
+import { noticesApi, documentsApi, getErrorMessage } from '../api/client';
 import type {
   Notice,
   NoticeListResponse,
   DraftNoticeResponse,
 } from '../api/client';
+import { useToast } from './Toast';
 import {
   AlertTriangle,
   Upload,
@@ -21,7 +22,7 @@ import {
   Filter,
   LucideIcon,
 } from 'lucide-react';
-import { formatDate, formatDateTime, statusColor } from '../utils/format';
+import { formatDate, statusColor } from '../utils/format';
 
 const URGENCY_COLORS: Record<string, string> = {
   high: 'bg-red-500/15 text-red-400 border-red-500/20',
@@ -31,11 +32,15 @@ const URGENCY_COLORS: Record<string, string> = {
 
 export default function NoticeManager() {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
   const [showUpload, setShowUpload] = useState<boolean>(false);
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [draftingId, setDraftingId] = useState<string | null>(null);
+  const [draftModalOpen, setDraftModalOpen] = useState<boolean>(false);
+  const [draftText, setDraftText] = useState<string>('');
+  const [draftMeta, setDraftMeta] = useState<{ legal_references?: string[]; recommended_actions?: string[] }>({});
 
   const params: Record<string, string> = {};
   if (filterStatus) params.status = filterStatus;
@@ -59,9 +64,29 @@ export default function NoticeManager() {
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => noticesApi.draftResponse(id, data),
     onSuccess: (data: DraftNoticeResponse) => {
       setDraftingId(null);
+      const text = data.draft_text || data.draft || data.response || '';
+      setDraftText(text);
+      setDraftMeta({
+        legal_references: data.legal_references,
+        recommended_actions: data.recommended_actions,
+      });
+      setDraftModalOpen(true);
       if (selectedNotice) {
-        setSelectedNotice({ ...selectedNotice, draft_response: data.draft || data.response });
+        setSelectedNotice({ ...selectedNotice, draft_response: text });
       }
+      queryClient.invalidateQueries({ queryKey: ['notices'] });
+    },
+    onError: () => setDraftingId(null),
+  });
+
+  const submitResponseMutation = useMutation({
+    mutationFn: ({ id, response }: { id: string; response: string }) =>
+      noticesApi.submitResponse(id, { response }),
+    onSuccess: () => {
+      toast.success('Response submitted successfully');
+      setDraftModalOpen(false);
+      setDraftText('');
+      setDraftMeta({});
       queryClient.invalidateQueries({ queryKey: ['notices'] });
     },
   });
@@ -155,7 +180,7 @@ export default function NoticeManager() {
           )}
           {uploadMutation.isError && (
             <p className="text-sm text-red-400 mt-3">
-              {(uploadMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed'}
+              {getErrorMessage(uploadMutation.error, 'Upload failed')}
             </p>
           )}
         </div>
@@ -335,9 +360,103 @@ export default function NoticeManager() {
 
               {draftMutation.isError && (
                 <p className="text-sm text-red-400">
-                  {(draftMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to draft response'}
+                  {getErrorMessage(draftMutation.error, 'Failed to draft response')}
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draft review / submit modal */}
+      {draftModalOpen && selectedNotice && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md animate-backdrop"
+          onClick={() => setDraftModalOpen(false)}
+        >
+          <div
+            className="bg-[#161b26]/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-white/[0.08] w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-100">Review Draft Response</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {selectedNotice.client_name || 'Client'} · {selectedNotice.notice_type || selectedNotice.type || 'Notice'}
+                </p>
+              </div>
+              <button
+                onClick={() => setDraftModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Editable Draft</label>
+                <textarea
+                  value={draftText}
+                  onChange={(e) => setDraftText(e.target.value)}
+                  rows={12}
+                  className="w-full px-4 py-3 rounded-xl text-sm text-slate-200 bg-white/[0.02] border border-white/[0.06] outline-none focus:border-blue-500/40 resize-none"
+                />
+              </div>
+
+              {(draftMeta.legal_references?.length || draftMeta.recommended_actions?.length) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {draftMeta.legal_references && draftMeta.legal_references.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Legal References</p>
+                      <ul className="space-y-1.5">
+                        {draftMeta.legal_references.map((ref, idx) => (
+                          <li key={`ref-${idx}`} className="text-xs text-slate-400 flex items-start gap-2">
+                            <AlertCircle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                            {ref}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {draftMeta.recommended_actions && draftMeta.recommended_actions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Recommended Actions</p>
+                      <ul className="space-y-1.5">
+                        {draftMeta.recommended_actions.map((action, idx) => (
+                          <li key={`action-${idx}`} className="text-xs text-slate-400 flex items-start gap-2">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />
+                            {action}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {submitResponseMutation.isError && (
+                <p className="text-sm text-red-400">
+                  {getErrorMessage(submitResponseMutation.error, 'Failed to submit response')}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-white/[0.06]">
+                <button
+                  onClick={() => setDraftModalOpen(false)}
+                  className="px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] rounded-xl transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => submitResponseMutation.mutate({ id: selectedNotice.id, response: draftText })}
+                  disabled={submitResponseMutation.isPending || !draftText.trim()}
+                  className="px-5 py-2.5 gradient-brand hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/15 transition-all"
+                >
+                  {submitResponseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Submit Response
+                </button>
+              </div>
             </div>
           </div>
         </div>
