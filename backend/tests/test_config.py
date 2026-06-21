@@ -12,7 +12,15 @@ from app.config import Settings, get_settings
 
 def test_redis_url_without_password() -> None:
     """When REDIS_PASSWORD is empty, Redis URLs keep their plain form."""
-    settings = Settings(REDIS_URL="redis://redis:6379/0", REDIS_PASSWORD="")
+    # Pass all three URLs explicitly so the test is hermetic — otherwise the
+    # CELERY_* fields fall through to ambient env vars (e.g. CI service-container
+    # URLs pointing at localhost) instead of the value under test.
+    settings = Settings(
+        REDIS_URL="redis://redis:6379/0",
+        REDIS_PASSWORD="",
+        CELERY_BROKER_URL="redis://redis:6379/0",
+        CELERY_RESULT_BACKEND="redis://redis:6379/0",
+    )
     assert settings.REDIS_URL == "redis://redis:6379/0"
     assert settings.CELERY_BROKER_URL == "redis://redis:6379/0"
     assert settings.CELERY_RESULT_BACKEND == "redis://redis:6379/0"
