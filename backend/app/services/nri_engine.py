@@ -325,19 +325,27 @@ class DTAAResponse:
     notes: str
 
 
-# Data-driven treaty table.  Rates are deliberately ``None`` until they can be
-# traced to the signed treaty text / CBDT notification and verified by a CA.
-# See ``backend/DTAA_TODO.md``.
+# Data-driven treaty table.  Rates below are INDICATIVE headline treaty
+# withholding rates sourced from the CBDT chart "Tax Rates: DTAA v. Income-tax
+# Act" (incometax.gov.in) cross-checked with PwC India WHT summary. They remain
+# flagged ``ca_review_required=True`` because the applicable rate depends on
+# shareholding bands, the "make available" test, beneficial-ownership and MLI
+# modifications that require professional verification. Stored as fractions
+# (0.15 == 15%). See ``backend/DTAA_TODO.md``.
+_DTAA_SOURCE = (
+    "Indicative — CBDT 'Tax Rates: DTAA v. Income-tax Act' (incometax.gov.in) + "
+    "PwC India WHT summary; verify against the signed treaty, protocol and MLI with a CA."
+)
 _DTAA_TREATIES: Dict[str, DTAATreaty] = {
     "USA": DTAATreaty(
         country="United States of America",
         country_code="US",
         rates=(
-            TreatyRateEntry("dividends", None, "Article 10 — rate bands depend on shareholding; verify treaty text"),
-            TreatyRateEntry("interest", None, "Article 11 — verify treaty text"),
-            TreatyRateEntry("royalty", None, "Article 12 — verify treaty text"),
-            TreatyRateEntry("fees_for_technical_services", None, "Article 12 — verify treaty text"),
-            TreatyRateEntry("capital_gains", None, "Article 13 — generally taxable in seller's state of residence"),
+            TreatyRateEntry("dividends", _d("0.15"), "Art. 10 — 15% if recipient holds >=10% voting stock (12m); 25% for portfolio holdings"),
+            TreatyRateEntry("interest", _d("0.15"), "Art. 11 — 15% general; 10% if paid to a bank/financial institution"),
+            TreatyRateEntry("royalty", _d("0.15"), "Art. 12 — 15% general; 10% for industrial/commercial/scientific equipment"),
+            TreatyRateEntry("fees_for_technical_services", _d("0.15"), "Art. 12 — 15%, subject to the 'make available' test"),
+            TreatyRateEntry("capital_gains", None, "Art. 13 — India taxes per domestic law; share gains generally taxable in residence state with exceptions"),
         ),
         residency_tie_breaker=(
             "Permanent home -> Centre of vital interests -> Habitual abode -> "
@@ -345,87 +353,87 @@ _DTAA_TREATIES: Dict[str, DTAATreaty] = {
         ),
         trc_required=True,
         form_10f_required=True,
-        source_citation="India-US DTAA (1990 as amended) — verify current protocol",
+        source_citation=_DTAA_SOURCE + " India-US DTAA (1990, as amended).",
         ca_review_required=True,
     ),
     "UAE": DTAATreaty(
         country="United Arab Emirates",
         country_code="AE",
         rates=(
-            TreatyRateEntry("dividends", None, "India-UAE DTAA Article 10"),
-            TreatyRateEntry("interest", None, "India-UAE DTAA Article 11"),
-            TreatyRateEntry("royalty", None, "India-UAE DTAA Article 12"),
-            TreatyRateEntry("fees_for_technical_services", None, "India-UAE DTAA Article 12"),
-            TreatyRateEntry("capital_gains", None, "Taxable in seller's state of residence"),
+            TreatyRateEntry("dividends", _d("0.10"), "Art. 10 — 10%"),
+            TreatyRateEntry("interest", _d("0.05"), "Art. 11 — 5% if paid to a bank/financial institution; 12.5% otherwise"),
+            TreatyRateEntry("royalty", _d("0.10"), "Art. 12 — 10%"),
+            TreatyRateEntry("fees_for_technical_services", None, "No separate FTS article; taxed as business profits / domestic 20% if an Indian PE exists"),
+            TreatyRateEntry("capital_gains", None, "Indian-asset gains taxable in India per post-amendment position"),
         ),
         residency_tie_breaker="Permanent home -> Personal/economic relations -> Habitual abode -> Nationality",
         trc_required=True,
         form_10f_required=True,
-        source_citation="India-UAE DTAA (1993) and protocol — verify with CBDT",
+        source_citation=_DTAA_SOURCE + " India-UAE DTAA (1992, as amended).",
         ca_review_required=True,
     ),
     "UK": DTAATreaty(
         country="United Kingdom",
         country_code="GB",
         rates=(
-            TreatyRateEntry("dividends", None, "India-UK DTAA Article 10"),
-            TreatyRateEntry("interest", None, "India-UK DTAA Article 11"),
-            TreatyRateEntry("royalty", None, "India-UK DTAA Article 12"),
-            TreatyRateEntry("fees_for_technical_services", None, "India-UK DTAA Article 12"),
-            TreatyRateEntry("capital_gains", None, "India-UK DTAA Article 13"),
+            TreatyRateEntry("dividends", _d("0.15"), "Art. 10 — up to 15% (10% band may apply)"),
+            TreatyRateEntry("interest", _d("0.15"), "Art. 11 — 15% general; 10% on bank interest"),
+            TreatyRateEntry("royalty", _d("0.15"), "Arts. 12/13 — 10%-15% by category"),
+            TreatyRateEntry("fees_for_technical_services", _d("0.15"), "Art. 13 — 10%-15% by category"),
+            TreatyRateEntry("capital_gains", None, "Art. 14 — Indian-source gains taxable in India"),
         ),
         residency_tie_breaker="Permanent home -> Centre of vital interests -> Habitual abode -> Nationality",
         trc_required=True,
         form_10f_required=True,
-        source_citation="India-UK DTAA (1993 as amended) — verify current protocol",
+        source_citation=_DTAA_SOURCE + " India-UK DTAA (1993, as amended 2013).",
         ca_review_required=True,
     ),
     "CANADA": DTAATreaty(
         country="Canada",
         country_code="CA",
         rates=(
-            TreatyRateEntry("dividends", None, "India-Canada DTAA Article 10"),
-            TreatyRateEntry("interest", None, "India-Canada DTAA Article 11"),
-            TreatyRateEntry("royalty", None, "India-Canada DTAA Article 12"),
-            TreatyRateEntry("fees_for_technical_services", None, "India-Canada DTAA Article 12"),
-            TreatyRateEntry("capital_gains", None, "India-Canada DTAA Article 13"),
+            TreatyRateEntry("dividends", _d("0.15"), "Art. 10 — 15% if holding >=10%; 25% otherwise"),
+            TreatyRateEntry("interest", _d("0.15"), "Art. 11 — 15%"),
+            TreatyRateEntry("royalty", _d("0.15"), "Art. 12 — 10%-20% by category (commonly 15%)"),
+            TreatyRateEntry("fees_for_technical_services", _d("0.15"), "Art. 12 — 10%-15% by category"),
+            TreatyRateEntry("capital_gains", None, "Art. 13 — Canada taxes worldwide gains, with credit for Indian tax"),
         ),
         residency_tie_breaker="Permanent home -> Personal/economic relations -> Habitual abode -> Nationality",
         trc_required=True,
         form_10f_required=True,
-        source_citation="India-Canada DTAA (1986 as amended) — verify with CBDT",
+        source_citation=_DTAA_SOURCE + " India-Canada DTAA (1985, as amended).",
         ca_review_required=True,
     ),
     "AUSTRALIA": DTAATreaty(
         country="Australia",
         country_code="AU",
         rates=(
-            TreatyRateEntry("dividends", None, "India-Australia DTAA Article 10"),
-            TreatyRateEntry("interest", None, "India-Australia DTAA Article 11"),
-            TreatyRateEntry("royalty", None, "India-Australia DTAA Article 12"),
-            TreatyRateEntry("fees_for_technical_services", None, "India-Australia DTAA Article 12"),
-            TreatyRateEntry("capital_gains", None, "India-Australia DTAA Article 13"),
+            TreatyRateEntry("dividends", _d("0.15"), "Art. 10 — 15%"),
+            TreatyRateEntry("interest", _d("0.15"), "Art. 11 — 15%"),
+            TreatyRateEntry("royalty", _d("0.15"), "Art. 12 — 10%-15% by category"),
+            TreatyRateEntry("fees_for_technical_services", None, "No separate FTS provision; domestic 20% applies"),
+            TreatyRateEntry("capital_gains", None, "Art. 13 — per domestic law"),
         ),
         residency_tie_breaker="Permanent home -> Centre of vital interests -> Habitual abode -> Nationality",
         trc_required=True,
         form_10f_required=True,
-        source_citation="India-Australia DTAA (1991 as amended) — verify with CBDT",
+        source_citation=_DTAA_SOURCE + " India-Australia DTAA (1991, as amended; MLI-modified).",
         ca_review_required=True,
     ),
     "SINGAPORE": DTAATreaty(
         country="Singapore",
         country_code="SG",
         rates=(
-            TreatyRateEntry("dividends", None, "India-Singapore DTAA Article 10"),
-            TreatyRateEntry("interest", None, "India-Singapore DTAA Article 11"),
-            TreatyRateEntry("royalty", None, "India-Singapore DTAA Article 12"),
-            TreatyRateEntry("fees_for_technical_services", None, "India-Singapore DTAA Article 12"),
-            TreatyRateEntry("capital_gains", None, "India-Singapore DTAA Article 13"),
+            TreatyRateEntry("dividends", _d("0.15"), "Art. 10 — 10% if holding >=25%; 15% otherwise"),
+            TreatyRateEntry("interest", _d("0.15"), "Art. 11 — 15% general; 10% if paid to a bank/financial institution"),
+            TreatyRateEntry("royalty", _d("0.10"), "Art. 12 — 10%"),
+            TreatyRateEntry("fees_for_technical_services", _d("0.10"), "Art. 12 — 10%"),
+            TreatyRateEntry("capital_gains", None, "Art. 13 — India may tax Indian-share gains (2017 amendment; LOB applies)"),
         ),
         residency_tie_breaker="Permanent home -> Centre of vital interests -> Habitual abode -> Nationality",
         trc_required=True,
         form_10f_required=True,
-        source_citation="India-Singapore DTAA (1994 as amended) — verify with CBDT",
+        source_citation=_DTAA_SOURCE + " India-Singapore DTAA (1994, as amended; MLI-modified).",
         ca_review_required=True,
     ),
 }
@@ -805,6 +813,7 @@ class CustomsTariffRequest:
     sws_rate_override: Optional[Decimal] = None
     cess_rate_override: Optional[Decimal] = None
     igst_rate_override: Optional[Decimal] = None
+    demo: bool = False                     # use illustrative sample rates if real ones are unsourced
 
 
 @dataclass
@@ -824,6 +833,7 @@ class CustomsTariffResponse:
     fta_applied: bool
     missing_rates: List[str]
     notes: str
+    is_sample_data: bool = False           # True when illustrative demo rates were used
     working: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -833,6 +843,19 @@ _DEFAULT_SWS_RATE = _d("0.10")
 # Tariff table — deliberately empty until sourced from the Customs Tariff Act /
 # Central Excise Tariff.  See ``backend/TARIFF_TODO.md``.
 _CUSTOMS_TARIFF_RATES: Dict[str, Dict[str, Optional[Decimal]]] = {}
+
+# ILLUSTRATIVE sample rates used ONLY in demo mode. These are NOT authoritative
+# and are flagged ``is_sample_data=True`` in the response. Real rates must be
+# sourced from the Customs Tariff (see TARIFF_TODO.md).
+_CUSTOMS_TARIFF_RATES_SAMPLE: Dict[str, Dict[str, Optional[Decimal]]] = {
+    "8517": {"bcd": _d("0.20"), "sws": _d("0.10"), "cess": None, "igst": _d("0.18")},  # phones / telecom
+    "8471": {"bcd": _d("0.00"), "sws": _d("0.10"), "cess": None, "igst": _d("0.18")},  # computers
+    "8528": {"bcd": _d("0.20"), "sws": _d("0.10"), "cess": None, "igst": _d("0.18")},  # monitors / displays
+    "8703": {"bcd": _d("0.70"), "sws": _d("0.10"), "cess": None, "igst": _d("0.28")},  # motor cars
+    "61":   {"bcd": _d("0.10"), "sws": _d("0.10"), "cess": None, "igst": _d("0.12")},  # apparel (knitted)
+    "62":   {"bcd": _d("0.10"), "sws": _d("0.10"), "cess": None, "igst": _d("0.12")},  # apparel (woven)
+    "30":   {"bcd": _d("0.10"), "sws": _d("0.10"), "cess": None, "igst": _d("0.12")},  # pharmaceuticals
+}
 
 # Recognised FTA codes for preferential-rate flags.
 _RECOGNISED_FTAS = frozenset({
@@ -846,16 +869,19 @@ _RECOGNISED_FTAS = frozenset({
 })
 
 
-def _lookup_customs_rates(hsn_code: str) -> Dict[str, Optional[Decimal]]:
-    """Look up rates by exact HSN or by chapter prefix."""
-    if hsn_code in _CUSTOMS_TARIFF_RATES:
-        return _CUSTOMS_TARIFF_RATES[hsn_code]
+def _lookup_customs_rates(
+    hsn_code: str, table: Optional[Dict[str, Dict[str, Optional[Decimal]]]] = None
+) -> Dict[str, Optional[Decimal]]:
+    """Look up rates by exact HSN or by chapter prefix in the given table."""
+    table = _CUSTOMS_TARIFF_RATES if table is None else table
+    if hsn_code in table:
+        return table[hsn_code]
 
     # Try progressively shorter prefixes (first 6, 4, 2 digits)
     for length in (6, 4, 2):
         prefix = hsn_code[:length]
-        if prefix in _CUSTOMS_TARIFF_RATES:
-            return _CUSTOMS_TARIFF_RATES[prefix]
+        if prefix in table:
+            return table[prefix]
 
     return {}
 
@@ -871,6 +897,10 @@ def compute_customs_tariff(request: CustomsTariffRequest) -> CustomsTariffRespon
     cif = request.cif_value
 
     lookup = _lookup_customs_rates(hsn)
+    is_sample_data = False
+    if not lookup and request.demo:
+        lookup = _lookup_customs_rates(hsn, table=_CUSTOMS_TARIFF_RATES_SAMPLE)
+        is_sample_data = bool(lookup)
     bcd_rate = request.bcd_rate_override or lookup.get("bcd")
     sws_rate = request.sws_rate_override or lookup.get("sws") or _DEFAULT_SWS_RATE
     cess_rate = request.cess_rate_override or lookup.get("cess")
@@ -912,6 +942,9 @@ def compute_customs_tariff(request: CustomsTariffRequest) -> CustomsTariffRespon
             "See TARIFF_TODO.md."
         )
 
+    if is_sample_data:
+        notes = "SAMPLE DATA — illustrative rates for demo only, NOT authoritative. " + notes
+
     return CustomsTariffResponse(
         hsn_code=hsn,
         cif_value=cif,
@@ -928,6 +961,7 @@ def compute_customs_tariff(request: CustomsTariffRequest) -> CustomsTariffRespon
         fta_applied=fta_applied,
         missing_rates=missing,
         notes=notes,
+        is_sample_data=is_sample_data,
         working={
             "cif_value": str(cif),
             "country_of_origin": request.country_of_origin,
