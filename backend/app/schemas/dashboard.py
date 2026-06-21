@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
@@ -18,7 +17,6 @@ class DashboardStats(BaseModel):
     overdue_tasks: int = Field(..., ge=0)
     documents_processed: int = Field(..., ge=0)
     queries_today: int = Field(..., ge=0)
-    revenue_this_month: Decimal = Field(Decimal("0"), ge=0)
 
 
 # ---------- Compliance overview ----------

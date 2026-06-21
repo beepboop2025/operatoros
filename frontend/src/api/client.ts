@@ -309,7 +309,6 @@ export interface DashboardStats {
   overdue_tasks?: number;
   queries_today?: number;
   documents_processed?: number;
-  revenue_this_month?: number;
 }
 
 export interface TeamMemberWorkload {

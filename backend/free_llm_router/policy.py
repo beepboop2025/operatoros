@@ -41,25 +41,33 @@ from .providers import Provider
 
 
 def smart_order(stats: List[ProviderStats]) -> List[Provider]:
+    """Rank providers for the next request.
+
+    Ordering criteria (cheapest-to-violate first):
+
+    1. Circuit health: closed circuits first, then half_open, then open.
+    2. Token availability: providers with an RPM token ready now come first.
+    3. Daily quota availability: providers with more headroom in their documented
+       daily cap come first. Providers with no documented cap are treated as
+       having unlimited headroom.
+    4. Static priority: lower ``provider.priority`` is preferred as a final
+       tie-breaker.
     """
-    TODO(you): Rank providers for the next request.
 
-    Return a list[Provider] in the order they should be tried. You don't have to
-    include every provider, but anything you drop simply won't be attempted this
-    call (the router still skips rate-limited / open-circuit ones defensively, so
-    dropping them is optional).
+    def _circuit_rank(state: str) -> int:
+        return {"closed": 0, "half_open": 1, "open": 2}.get(state, 2)
 
-    Suggested shape — sort by a tuple of keys, cheapest-to-violate first, e.g.:
+    def _quota_ratio(s: ProviderStats) -> float:
+        if s.day_limit is None or s.day_limit <= 0:
+            return 0.0  # unlimited or unknown = best availability
+        return s.day_count / s.day_limit
 
-        def rank(s: ProviderStats):
-            return (
-                0 if s.circuit_state == "closed" else 1,   # healthy first
-                0 if s.tokens_available else 1,             # ready-now first
-                ???,                                        # your quota / latency call
-                s.provider.priority,                        # static tie-break
-            )
-        return [s.provider for s in sorted(stats, key=rank)]
+    def rank(s: ProviderStats) -> tuple:
+        return (
+            _circuit_rank(s.circuit_state),
+            0 if s.tokens_available else 1,
+            _quota_ratio(s),
+            s.provider.priority,
+        )
 
-    Replace the line below with your implementation.
-    """
-    return default_order(stats)  # placeholder — delegates to static priority
+    return [s.provider for s in sorted(stats, key=rank)]
