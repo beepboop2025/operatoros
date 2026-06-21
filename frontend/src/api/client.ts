@@ -555,6 +555,7 @@ export interface CustomsTariffRequest {
   sws_rate_override?: number | null;
   cess_rate_override?: number | null;
   igst_rate_override?: number | null;
+  demo?: boolean;
 }
 
 export interface CustomsTariffResponse {
@@ -573,6 +574,7 @@ export interface CustomsTariffResponse {
   fta_applied: boolean;
   missing_rates: string[];
   notes: string;
+  is_sample_data?: boolean;
   working: Record<string, unknown>;
 }
 

@@ -200,6 +200,7 @@ def _adapt_customs_request(
         sws_rate_override=schema.sws_rate_override,
         cess_rate_override=schema.cess_rate_override,
         igst_rate_override=schema.igst_rate_override,
+        demo=schema.demo,
     )
 
 
@@ -222,6 +223,7 @@ def _adapt_customs_response(
         fta_applied=result.fta_applied,
         missing_rates=result.missing_rates,
         notes=result.notes,
+        is_sample_data=result.is_sample_data,
         working=result.working,
     )
 

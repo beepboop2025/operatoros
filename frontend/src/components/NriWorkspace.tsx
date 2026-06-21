@@ -826,6 +826,17 @@ function CustomsTariffTab() {
         <NumInput label="IGST Rate Override" value={form.igst_rate_override ?? ''} onChange={(v) => update('igst_rate_override', v)} placeholder="0.18" />
       </div>
 
+      <label className="flex items-center gap-2.5 text-sm text-textura-muted cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={!!form.demo}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => update('demo', e.target.checked)}
+          className="w-4 h-4 accent-textura-accent"
+        />
+        <span>Demo data</span>
+        <span className="text-xs text-textura-dim">— fill illustrative sample rates when real Customs Tariff rates aren't sourced</span>
+      </label>
+
       <Button
         variant="gradient"
         loading={mutation.isPending}
@@ -845,6 +856,15 @@ function CustomsTariffTab() {
 
       {result && (
         <div className="space-y-4">
+          {result.is_sample_data && (
+            <div className="flex items-center gap-3 p-4 bg-textura-warm/10 border border-textura-warm/30 rounded-xl text-sm text-textura-warm animate-fade-in">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <div>
+                <p className="font-medium">Sample data — illustrative only</p>
+                <p className="text-xs opacity-80">These figures use demo rates, not authoritative Customs Tariff values. Not for filing or client advice.</p>
+              </div>
+            </div>
+          )}
           {hasMissingRates && (
             <div className="flex items-center gap-3 p-4 bg-warning/10 border border-warning/20 rounded-xl text-sm text-warning">
               <AlertCircle className="w-5 h-5 shrink-0" />

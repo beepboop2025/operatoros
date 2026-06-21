@@ -410,3 +410,40 @@ class TestCrossBorderGST:
         resp = compute_cross_border_gst(req)
         assert resp.total_gst == D("18_000")
         assert resp.place_of_supply == "Maharashtra"
+
+
+class TestDemoDataAndSourcedRates:
+    """Phase: sourced indicative DTAA rates + customs demo-mode sample rates."""
+
+    def test_dtaa_returns_sourced_indicative_rates(self) -> None:
+        # DTAA now returns real headline rates, still flagged for CA verification.
+        resp = explore_dtaa(DTAARequest(country="USA", income_type="dividends"))
+        assert resp.rates[0]["rate_percent"] == 15.0
+        assert resp.ca_review_required is True
+        assert "Indicative" in resp.source_citation
+
+    def test_customs_without_demo_stays_honest(self) -> None:
+        # Default (no demo): unsourced HSN reports missing rates, never guesses.
+        resp = compute_customs_tariff(
+            CustomsTariffRequest(hsn_code="8517", cif_value=Decimal("100000"))
+        )
+        assert resp.is_sample_data is False
+        assert "bcd" in resp.missing_rates
+        assert resp.total_landed_cost is None
+
+    def test_customs_demo_uses_labeled_sample_rates(self) -> None:
+        # Demo mode: fills illustrative rates, computes, and flags as sample.
+        resp = compute_customs_tariff(
+            CustomsTariffRequest(hsn_code="8517", cif_value=Decimal("100000"), demo=True)
+        )
+        assert resp.is_sample_data is True
+        assert resp.total_landed_cost is not None
+        assert "SAMPLE DATA" in resp.notes
+
+    def test_customs_demo_unknown_hsn_still_honest(self) -> None:
+        # Demo mode but no sample for this HSN -> still reports missing, not faked.
+        resp = compute_customs_tariff(
+            CustomsTariffRequest(hsn_code="9999", cif_value=Decimal("100000"), demo=True)
+        )
+        assert resp.is_sample_data is False
+        assert resp.missing_rates

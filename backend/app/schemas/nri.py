@@ -224,6 +224,7 @@ class CustomsTariffRequest(BaseModel):
     sws_rate_override: Optional[Decimal] = Field(None, ge=0, le=1)
     cess_rate_override: Optional[Decimal] = Field(None, ge=0, le=1)
     igst_rate_override: Optional[Decimal] = Field(None, ge=0, le=1)
+    demo: bool = Field(False, description="Use illustrative sample rates when real ones are unsourced")
 
 
 class CustomsTariffResponse(BaseModel):
@@ -242,6 +243,7 @@ class CustomsTariffResponse(BaseModel):
     fta_applied: bool
     missing_rates: List[str]
     notes: str
+    is_sample_data: bool = False
     working: Dict[str, Any] = Field(default_factory=dict)
 
 
