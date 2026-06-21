@@ -1,0 +1,49 @@
+name: tests
+
+# Lightweight, deterministic test job for the dependency-free pure-logic core
+# (CII indexation, compliance calendar, GST rate splitter, TDS/TCS rates).
+# No Postgres / Redis / API keys required, so it runs green on every push & PR.
+# The heavier integration suite lives in ci.yml.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal test dependencies
+        # Only pytest + coverage are needed; the modules under test are stdlib-only.
+        run: pip install --upgrade pip pytest pytest-cov
+
+      - name: Run pure-logic core tests with coverage
+        run: |
+          PYTHONPATH=. pytest tests/test_core_utils.py \
+            --noconftest -o addopts="" -p no:cacheprovider \
+            --cov=app.utils.cii_table \
+            --cov=app.utils.compliance_calendar \
+            --cov=app.utils.gst_rates \
+            --cov=app.utils.tds_rates \
+            --cov-report=term-missing
+
+      - name: Print coverage summary
+        run: |
+          PYTHONPATH=. pytest tests/test_core_utils.py \
+            --noconftest -o addopts="" -p no:cacheprovider \
+            --cov=app.utils.cii_table \
+            --cov=app.utils.compliance_calendar \
+            --cov=app.utils.gst_rates \
+            --cov=app.utils.tds_rates \
+            --cov-report=term | tail -n 8
