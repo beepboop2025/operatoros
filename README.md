@@ -96,7 +96,7 @@ cp .env.example .env            # set SECRET_KEY (python -c "import secrets;prin
 
 docker compose up               # Postgres+pgvector · Redis · FastAPI · frontend
 docker compose exec fastapi alembic upgrade head
-docker compose exec fastapi python scripts/seed_data.py   # creates an admin user
+docker compose exec fastapi python -m app.seed            # demo firm, users, sample data
 ```
 
 - App → `http://localhost:5173`  ·  API docs → `http://localhost:8000/docs`

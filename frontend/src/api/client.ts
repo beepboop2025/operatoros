@@ -899,6 +899,13 @@ export const dashboardApi = {
     api.get('/dashboard/workload').then((r) => r.data),
 };
 
+// ── Waitlist (admin) ─────────────────────────────────────────
+export const waitlistApi = {
+  // Returns the CSV as a Blob; the Bearer token is attached by the request interceptor.
+  exportCsv: (): Promise<Blob> =>
+    api.get('/waitlist/export.csv', { responseType: 'blob' }).then((r) => r.data),
+};
+
 // ── Tasks Status ─────────────────────────────────────────
 export const tasksApi = {
   getStatus: (taskId: string): Promise<{ task_id: string; status: string; ready: boolean; result?: unknown; error?: string }> =>

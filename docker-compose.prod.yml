@@ -20,6 +20,8 @@ services:
     restart: always
 
   postgres:
+    # Internal network only — never publish the database to the public VPS interface.
+    ports: []
     deploy:
       resources:
         limits:
@@ -31,6 +33,8 @@ services:
     restart: always
 
   redis:
+    # Internal network only — do not expose Redis to the internet.
+    ports: []
     command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-changeme}
     deploy:
       resources:
@@ -79,6 +83,10 @@ services:
   caddy:
     image: caddy:2-alpine
     container_name: operatoros-caddy
+    # Caddy expands {$DOMAIN} from its OWN environment, so it must be passed in here.
+    # Compose substitutes ${DOMAIN} from the shell or the .env file.
+    environment:
+      - DOMAIN=${DOMAIN:-yourdomain.com}
     ports:
       - "80:80"
       - "443:443"

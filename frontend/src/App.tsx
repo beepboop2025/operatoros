@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import CustomCursor from './components/CustomCursor';
 import Layout from './components/Layout';
 import Landing from './components/Landing';
 import Login from './components/Login';
@@ -44,8 +45,10 @@ export default function App() {
   const location = useLocation();
 
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
+    <>
+      <CustomCursor />
+      <Routes>
+        <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route
         path="/*"
@@ -70,7 +73,8 @@ export default function App() {
             </Layout>
           </ProtectedRoute>
         }
-      />
-    </Routes>
+        />
+      </Routes>
+    </>
   );
 }

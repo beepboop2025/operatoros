@@ -29,6 +29,7 @@ import {
 import { formatDate } from '../utils/format';
 import { SkeletonCard } from './Skeleton';
 import { StatCard } from './textura';
+import ExportLeadsButton from './ExportLeadsButton';
 
 interface QuickAction {
   label: string;
@@ -99,9 +100,12 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="animate-stagger-1">
-        <h1 className="text-2xl font-bold text-textura-text">Dashboard</h1>
-        <p className="text-sm text-textura-dim mt-1">Welcome back. Here is your practice overview.</p>
+      <div className="animate-stagger-1 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-textura-text">Dashboard</h1>
+          <p className="text-sm text-textura-dim mt-1">Welcome back. Here is your practice overview.</p>
+        </div>
+        <ExportLeadsButton />
       </div>
 
       {/* Stats row */}
