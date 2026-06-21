@@ -6,6 +6,8 @@ dist/
 build/
 .venv/
 venv/
+.coverage
+htmlcov/
 
 # Node
 node_modules/

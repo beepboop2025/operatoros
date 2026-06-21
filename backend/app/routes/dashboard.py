@@ -17,7 +17,7 @@ from app.models.client import Client
 from app.models.compliance import ComplianceStatus, ComplianceTask
 from app.models.computation import TaxComputation
 from app.models.document import Document, DocumentStatus
-from app.models.query import Query
+from app.models.query import Query as QueryModel
 from app.models.user import User
 from app.schemas.dashboard import (
     ComplianceOverview,
@@ -101,8 +101,8 @@ async def get_stats(
 
     # Queries today
     queries_today_result = await db.execute(
-        select(func.count(Query.id)).where(
-            Query.created_at >= today_start
+        select(func.count(QueryModel.id)).where(
+            QueryModel.created_at >= today_start
         )
     )
     queries_today = queries_today_result.scalar_one()
@@ -236,9 +236,9 @@ async def get_recent_activity(
 
     # Recent queries
     queries_result = await db.execute(
-        select(Query, User.full_name)
-        .outerjoin(User, Query.asked_by == User.id)
-        .order_by(Query.created_at.desc())
+        select(QueryModel, User.full_name)
+        .outerjoin(User, QueryModel.asked_by == User.id)
+        .order_by(QueryModel.created_at.desc())
         .limit(10)
     )
     recent_queries = [
