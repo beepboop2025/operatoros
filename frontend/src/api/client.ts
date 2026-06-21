@@ -4,6 +4,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
 export interface ApiError {
   response?: {
+    status?: number;
     data?: {
       detail?: string;
       message?: string;
@@ -247,6 +248,7 @@ export interface DraftResponseRequest {
 
 export interface LoginResponse {
   access_token?: string;
+  refresh_token?: string;
   token?: string;
   user?: User;
 }
@@ -416,6 +418,210 @@ export interface SubmitNoticeResponseRequest {
   response: string;
 }
 
+// ── NRI / Cross-border types ─────────────────────────────────
+
+export type ResidentialStatus = 'Resident' | 'RNOR' | 'NRI' | 'Deemed Resident';
+export type TaxScope = 'global' | 'india_sourced_plus_foreign_controlled' | 'india_sourced';
+export type DTAAIncomeType = 'dividends' | 'interest' | 'royalty' | 'fees_for_technical_services' | 'capital_gains';
+export type Section195PaymentType = 'interest' | 'dividend' | 'royalty' | 'fees_for_technical_services' | 'rent' | 'property_sale' | 'other';
+export type CrossBorderTransactionType = 'import' | 'export' | 'oidar' | 'domestic';
+
+export interface ResidentialStatusRequest {
+  assessment_year: string;
+  days_in_india_current_fy: number;
+  days_in_india_prior_4_fys: number[];
+  days_in_india_prior_7_fys?: number[] | null;
+  prior_10_fys_resident?: boolean[] | null;
+  is_indian_citizen: boolean;
+  is_person_of_indian_origin: boolean;
+  leaving_for_employment: boolean;
+  is_crew_of_indian_ship: boolean;
+  indian_source_income: number;
+  tax_resident_elsewhere: boolean;
+}
+
+export interface ResidentialStatusResponse {
+  status: ResidentialStatus;
+  taxable_scope: TaxScope;
+  controlling_rule: string;
+  rnor_test_result: string | null;
+  is_deemed_resident: boolean;
+  days_in_india_current_fy: number;
+  days_in_india_prior_4_fys: number[];
+  threshold_days: number;
+  working: Record<string, unknown>;
+}
+
+export interface DTAARequest {
+  country: string;
+  income_type?: DTAAIncomeType | null;
+}
+
+export interface DTAARateEntry {
+  income_type: string;
+  rate: number | null;
+  rate_percent: number | null;
+  notes: string;
+}
+
+export interface DTAAResponse {
+  country: string;
+  country_code: string;
+  rates: DTAARateEntry[];
+  residency_tie_breaker: string;
+  trc_required: boolean;
+  form_10f_required: boolean;
+  documentation: string[];
+  source_citation: string;
+  ca_review_required: boolean;
+  notes: string;
+}
+
+export interface Section195Request {
+  payment_type: Section195PaymentType;
+  payment_amount: number;
+  payee_is_nri: boolean;
+  payee_country: string;
+  payee_has_trc: boolean;
+  payee_has_pan: boolean;
+  property_sale_consideration?: number | null;
+  property_is_long_term: boolean;
+  has_form_15e_certificate: boolean;
+  certificate_rate?: number | null;
+  domestic_rate_override?: number | null;
+  treaty_rate_override?: number | null;
+}
+
+export interface Section195Response {
+  section: string;
+  payment_type: string;
+  applicable_rate: number | null;
+  tds_amount: number | null;
+  applicable_regime: string;
+  form_15ca_required: boolean;
+  form_15cb_required: boolean;
+  form_15e_applied: boolean;
+  certificate_rate: number | null;
+  repatriation_note: string;
+  notes: string;
+  working: Record<string, unknown>;
+}
+
+export interface FTCCreditCountryInput {
+  country: string;
+  foreign_income: number;
+  foreign_tax_paid: number;
+  has_dtaa: boolean;
+}
+
+export interface FTCCreditCountryResult {
+  country: string;
+  foreign_income: number;
+  foreign_tax_paid: number;
+  indian_tax_on_foreign_income: number;
+  allowable_credit: number;
+  disallowance: number;
+  method: string;
+}
+
+export interface FTCRequest {
+  assessment_year: string;
+  total_income: number;
+  total_indian_tax: number;
+  countries: FTCCreditCountryInput[];
+  filing_date?: string | null;
+}
+
+export interface FTCResponse {
+  assessment_year: string;
+  total_foreign_income: number;
+  total_foreign_tax_paid: number;
+  total_allowable_credit: number;
+  total_disallowance: number;
+  average_indian_tax_rate: number;
+  form_67_due_date: string;
+  is_filed_on_time: boolean;
+  per_country: FTCCreditCountryResult[];
+  notes: string;
+  working: Record<string, unknown>;
+}
+
+export interface CustomsTariffRequest {
+  hsn_code: string;
+  cif_value: number;
+  country_of_origin?: string | null;
+  fta_code?: string | null;
+  bcd_rate_override?: number | null;
+  sws_rate_override?: number | null;
+  cess_rate_override?: number | null;
+  igst_rate_override?: number | null;
+}
+
+export interface CustomsTariffResponse {
+  hsn_code: string;
+  cif_value: number;
+  bcd_rate: number | null;
+  bcd_amount: number | null;
+  sws_rate: number | null;
+  sws_amount: number | null;
+  cess_rate: number | null;
+  cess_amount: number | null;
+  igst_rate: number | null;
+  igst_amount: number | null;
+  import_duty_total: number | null;
+  total_landed_cost: number | null;
+  fta_applied: boolean;
+  missing_rates: string[];
+  notes: string;
+  working: Record<string, unknown>;
+}
+
+export interface CrossBorderGSTRequest {
+  taxable_value: number;
+  transaction_type: CrossBorderTransactionType;
+  supply_type: 'goods' | 'services';
+  hsn_sac?: string | null;
+  gst_rate?: number | null;
+  has_lut: boolean;
+  is_b2b: boolean;
+  recipient_country: string;
+  place_of_supply?: string | null;
+  import_duty_amount: number;
+}
+
+export interface CrossBorderGSTResponse {
+  transaction_type: string;
+  supply_type: string;
+  taxable_value: number;
+  igst: number;
+  cgst: number;
+  sgst: number;
+  total_gst: number;
+  invoice_total: number;
+  export_zero_rated: boolean;
+  reverse_charge: boolean;
+  place_of_supply: string;
+  notes: string;
+  working: Record<string, unknown>;
+}
+
+export interface TaxIntelItem {
+  id: string;
+  title: string;
+  summary: string;
+  source_url: string;
+  published_at: string;
+  jurisdiction: string;
+  topic: string;
+  nri_impact_score: number;
+  matched_terms: string[];
+}
+
+export interface TaxIntelListResponse {
+  items?: TaxIntelItem[];
+  total?: number;
+}
+
 // ── List response helpers (APIs return varying shapes) ───────
 
 export interface ClientListResponse {
@@ -471,6 +677,7 @@ function onRefreshed(token: string | null) {
 
 function clearAuthAndRedirect() {
   localStorage.removeItem('auditmind_token');
+  localStorage.removeItem('auditmind_refresh');
   localStorage.removeItem('auditmind_user');
   if (window.location.pathname !== '/login') {
     window.location.href = '/login';
@@ -528,6 +735,9 @@ api.interceptors.response.use(
           throw new Error('Refresh endpoint did not return a token');
         }
         localStorage.setItem('auditmind_token', newToken);
+        if (rs.refresh_token) {
+          localStorage.setItem('auditmind_refresh', rs.refresh_token);
+        }
         onRefreshed(newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
@@ -574,7 +784,13 @@ export const authApi = {
   getMe: (): Promise<User> =>
     api.get('/auth/me').then((r) => r.data),
   refresh: (): Promise<LoginResponse> =>
-    api.post('/auth/refresh', {}, { __skipRefresh: true } as unknown as InternalAxiosRequestConfig).then((r) => r.data),
+    api
+      .post(
+        '/auth/refresh',
+        { refresh_token: localStorage.getItem('auditmind_refresh') },
+        { __skipRefresh: true } as unknown as InternalAxiosRequestConfig,
+      )
+      .then((r) => r.data),
 };
 
 // ── Clients ───────────────────────────────────────────────
@@ -693,6 +909,34 @@ export const tasksApi = {
 export const auditApi = {
   list: (params?: Record<string, unknown>): Promise<PaginatedResponse<unknown>> =>
     api.get('/audit', { params }).then((r) => r.data),
+};
+
+// ── NRI / Cross-border ─────────────────────────────────────
+export const nriApi = {
+  residentialStatus: (data: ResidentialStatusRequest): Promise<ResidentialStatusResponse> =>
+    api.post('/nri/residential-status', data).then((r) => r.data),
+  dtaa: (data: DTAARequest): Promise<DTAAResponse> =>
+    api.post('/nri/dtaa', data).then((r) => r.data),
+  section195: (data: Section195Request): Promise<Section195Response> =>
+    api.post('/nri/section195', data).then((r) => r.data),
+  ftc: (data: FTCRequest): Promise<FTCResponse> =>
+    api.post('/nri/ftc', data).then((r) => r.data),
+  customsTariff: (data: CustomsTariffRequest): Promise<CustomsTariffResponse> =>
+    api.post('/nri/customs-tariff', data).then((r) => r.data),
+  gstCrossBorder: (data: CrossBorderGSTRequest): Promise<CrossBorderGSTResponse> =>
+    api.post('/nri/gst-cross-border', data).then((r) => r.data),
+};
+
+// ── World Tax Radar ────────────────────────────────────────
+// Stream B will build the backend endpoint; until then, 404s are surfaced as an empty feed.
+export const taxIntelApi = {
+  list: (params?: { jurisdiction?: string; topic?: string; impact?: number }): Promise<TaxIntelListResponse> =>
+    api.get('/tax-intel', { params }).then((r) => r.data).catch((err) => {
+      if ((err as ApiError).response?.status === 404) {
+        return { items: [] };
+      }
+      throw err;
+    }),
 };
 
 export default api;

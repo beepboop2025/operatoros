@@ -55,6 +55,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const data = await authApi.login(email, password);
     const jwt = data.access_token || data.token || '';
     localStorage.setItem('auditmind_token', jwt);
+    if (data.refresh_token) {
+      localStorage.setItem('auditmind_refresh', data.refresh_token);
+    }
     setToken(jwt);
     // Fetch user profile
     try {
@@ -71,6 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(() => {
     localStorage.removeItem('auditmind_token');
+    localStorage.removeItem('auditmind_refresh');
     localStorage.removeItem('auditmind_user');
     setToken(null);
     setUser(null);

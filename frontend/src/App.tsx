@@ -11,6 +11,8 @@ import DocumentManager from './components/DocumentManager';
 import TaxComputer from './components/TaxComputer';
 import QueryChat from './components/QueryChat';
 import NoticeManager from './components/NoticeManager';
+import NriWorkspace from './components/NriWorkspace';
+import TaxRadar from './components/TaxRadar';
 import { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
@@ -58,6 +60,8 @@ export default function App() {
                   <Route path="/compliance" element={<ComplianceCalendar />} />
                   <Route path="/documents" element={<DocumentManager />} />
                   <Route path="/compute" element={<TaxComputer />} />
+                  <Route path="/nri" element={<NriWorkspace />} />
+                  <Route path="/radar" element={<TaxRadar />} />
                   <Route path="/queries" element={<QueryChat />} />
                   <Route path="/notices" element={<NoticeManager />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

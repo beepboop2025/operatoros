@@ -9,6 +9,8 @@ import {
   Calculator,
   MessageSquare,
   AlertTriangle,
+  Globe,
+  Radio,
   LogOut,
   Bell,
   Menu,
@@ -30,6 +32,8 @@ const navItems: NavItem[] = [
   { to: '/compliance', icon: CalendarCheck, label: 'Compliance' },
   { to: '/documents', icon: FileText, label: 'Documents' },
   { to: '/compute', icon: Calculator, label: 'Tax Calculator' },
+  { to: '/nri', icon: Globe, label: 'NRI / Cross-border' },
+  { to: '/radar', icon: Radio, label: 'World Tax Radar' },
   { to: '/queries', icon: MessageSquare, label: 'AI Queries' },
   { to: '/notices', icon: AlertTriangle, label: 'Notices' },
 ];
