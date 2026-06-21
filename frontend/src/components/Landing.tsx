@@ -1,6 +1,7 @@
 import { useState, FormEvent, ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { WaitlistProvider, useWaitlist } from './Waitlist';
 import TexturaBackground from './textura/TexturaBackground';
 import Panel from './textura/Panel';
 import Button from './textura/Button';
@@ -30,6 +31,7 @@ const navLinks = [
 
 function Header() {
   const { isAuthenticated } = useAuth();
+  const { openWaitlist } = useWaitlist();
   const [open, setOpen] = useState(false);
 
   return (
@@ -63,11 +65,11 @@ function Header() {
             ) : (
               <>
                 <Link to="/login">
-                  <Button variant="ghost">Sign In</Button>
+                  <Button variant="ghost" data-cursor-label="Demo">View Demo</Button>
                 </Link>
-                <Link to="/login">
-                  <Button variant="gradient">Get Started</Button>
-                </Link>
+                <Button variant="gradient" onClick={() => openWaitlist('header')} data-cursor-label="Join">
+                  Request Access
+                </Button>
               </>
             )}
           </div>
@@ -96,11 +98,18 @@ function Header() {
           ))}
           <div className="pt-2 flex flex-col gap-2">
             <Link to="/login" onClick={() => setOpen(false)}>
-              <Button variant="ghost" className="w-full">Sign In</Button>
+              <Button variant="ghost" className="w-full">View Demo</Button>
             </Link>
-            <Link to="/login" onClick={() => setOpen(false)}>
-              <Button variant="gradient" className="w-full">Get Started</Button>
-            </Link>
+            <Button
+              variant="gradient"
+              className="w-full"
+              onClick={() => {
+                setOpen(false);
+                openWaitlist('header-mobile');
+              }}
+            >
+              Request Access
+            </Button>
           </div>
         </div>
       )}
@@ -109,6 +118,7 @@ function Header() {
 }
 
 function Hero() {
+  const { openWaitlist } = useWaitlist();
   return (
     <section className="relative pt-32 pb-20 lg:pt-44 lg:pb-32 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto text-center">
@@ -128,20 +138,31 @@ function Hero() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-stagger-4">
-          <Link to="/login">
-            <Button variant="gradient" size="lg" className="min-w-[180px]">
-              Start Free <ArrowRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          <Button
+            variant="gradient"
+            size="lg"
+            className="min-w-[190px]"
+            onClick={() => openWaitlist('hero')}
+            data-cursor-label="Join"
+          >
+            Request Access <ArrowRight className="w-4 h-4" />
+          </Button>
           <a href="#residency">
-            <Button variant="ghost" size="lg" className="min-w-[180px]">
-              Check Residency
+            <Button variant="ghost" size="lg" className="min-w-[190px]">
+              Check My Residency
             </Button>
           </a>
         </div>
 
-        <p className="mt-4 text-xs text-textura-muted animate-stagger-5">
-          CA-reviewed computations. FEMA/RBI aware. No tax surprises.
+        <p className="mt-5 text-xs text-textura-muted animate-stagger-5">
+          CA-reviewed computations · FEMA/RBI aware · No tax surprises
+        </p>
+        <p className="mt-2 text-xs text-textura-muted animate-stagger-5">
+          Just exploring?{' '}
+          <Link to="/login" className="text-textura-accent hover:text-textura-warm transition-colors" data-cursor-label="Demo">
+            View the live demo
+          </Link>{' '}
+          <span className="text-textura-muted/70">— demo@operatoros.in / OperatorOS#2026</span>
         </p>
       </div>
     </section>
@@ -316,6 +337,7 @@ function ResidencyHook() {
 }
 
 function DTAAHook() {
+  const { openWaitlist } = useWaitlist();
   const countries = ['United States', 'UAE', 'United Kingdom', 'Canada', 'Australia', 'Singapore'];
   const [country, setCountry] = useState('');
 
@@ -344,11 +366,14 @@ function DTAAHook() {
                 ))}
               </Select>
             </Field>
-            <Link to="/login">
-              <Button variant="gradient" className="w-full sm:w-auto">
-                View Treaty
-              </Button>
-            </Link>
+            <Button
+              variant="gradient"
+              className="w-full sm:w-auto"
+              onClick={() => openWaitlist('dtaa')}
+              data-cursor-label="Join"
+            >
+              View Treaty
+            </Button>
           </div>
 
           {country && (
@@ -412,6 +437,7 @@ function Modules() {
 }
 
 function Pricing() {
+  const { openWaitlist } = useWaitlist();
   const plans = [
     {
       name: 'Starter',
@@ -478,11 +504,14 @@ function Pricing() {
                   </li>
                 ))}
               </ul>
-              <Link to="/login">
-                <Button variant={plan.popular ? 'gradient' : 'ghost'} className="w-full">
-                  {plan.cta}
-                </Button>
-              </Link>
+              <Button
+                variant={plan.popular ? 'gradient' : 'ghost'}
+                className="w-full"
+                onClick={() => openWaitlist(`pricing-${plan.name.toLowerCase()}`)}
+                data-cursor-label="Join"
+              >
+                {plan.cta}
+              </Button>
             </Panel>
           ))}
         </div>
@@ -527,6 +556,7 @@ function Trust() {
 }
 
 function CTA() {
+  const { openWaitlist } = useWaitlist();
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -535,13 +565,11 @@ function CTA() {
             Stop guessing. Start computing.
           </h2>
           <p className="text-textura-dim max-w-lg mx-auto mb-8">
-            Join NRIs, returning Indians, and global founders who use OperatorOS to stay clear on cross-border tax.
+            Join NRIs, returning Indians, and global founders getting early access to OperatorOS.
           </p>
-          <Link to="/login">
-            <Button variant="gradient" size="lg">
-              Get Started Free <ChevronRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          <Button variant="gradient" size="lg" onClick={() => openWaitlist('footer-cta')} data-cursor-label="Join">
+            Request Early Access <ChevronRight className="w-4 h-4" />
+          </Button>
         </Panel>
       </div>
     </section>
@@ -566,19 +594,21 @@ function Footer() {
 
 export default function Landing() {
   return (
-    <TexturaBackground>
-      <Header />
-      <main>
-        <Hero />
-        <Features />
-        <ResidencyHook />
-        <DTAAHook />
-        <Modules />
-        <Pricing />
-        <Trust />
-        <CTA />
-      </main>
-      <Footer />
-    </TexturaBackground>
+    <WaitlistProvider>
+      <TexturaBackground>
+        <Header />
+        <main>
+          <Hero />
+          <Features />
+          <ResidencyHook />
+          <DTAAHook />
+          <Modules />
+          <Pricing />
+          <Trust />
+          <CTA />
+        </main>
+        <Footer />
+      </TexturaBackground>
+    </WaitlistProvider>
   );
 }

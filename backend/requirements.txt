@@ -7,6 +7,10 @@ pydantic>=2.9.0
 pydantic-settings>=2.5.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+# Pin bcrypt to the last release compatible with passlib 1.7.4. bcrypt >= 4.1 removed the
+# internals passlib's backend self-test relies on, so a fresh build with bcrypt 5.x crashes
+# every hash/verify call (and thus all logins). Unpin only after migrating off passlib.
+bcrypt==4.0.1
 python-multipart>=0.0.12
 redis>=5.1.0
 httpx>=0.27.0

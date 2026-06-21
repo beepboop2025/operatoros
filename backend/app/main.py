@@ -120,6 +120,7 @@ _ROUTER_CONFIG: list[tuple[str, str, str]] = [
     ("app.routes.nri", "router", "/api/nri"),
     ("app.routes.notifications", "router", "/api/notifications"),
     ("app.routes.tax_intel", "router", "/api/tax-intel"),
+    ("app.routes.waitlist", "router", "/api/waitlist"),
 ]
 
 

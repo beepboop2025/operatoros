@@ -8,11 +8,11 @@ Access the singleton via ``get_settings()``.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List
+from typing import Annotated, List
 from urllib.parse import urlparse, urlunparse
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -55,7 +55,10 @@ class Settings(BaseSettings):
     N8N_WEBHOOK_URL: str = "http://n8n:5678"
 
     # ── CORS ─────────────────────────────────────────────────────────────────
-    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # NoDecode: stop pydantic-settings (2.x) from JSON-decoding this List field at the
+    # env-source layer, so the comma-separated .env value reaches parse_cors_origins().
+    # Without it, `CORS_ORIGINS=a,b` crashes settings load on a fresh build (pydantic-settings >= ~2.7).
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:5173", "http://localhost:3000"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -73,6 +76,19 @@ class Settings(BaseSettings):
 
     # ── Ingest / scraper security ────────────────────────────────────────────
     INGEST_API_KEY: str = ""
+
+    # ── Notifications — outbound delivery ─────────────────────────────────────
+    # All optional. A channel is only used when its settings are present, so an
+    # unconfigured deploy silently no-ops (in-app bell notifications still work).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""           # falls back to SMTP_USER when empty
+    SMTP_USE_TLS: bool = True
+    NOTIFY_EMAIL_TO: str = ""     # recipient(s) for signup/ops alerts; comma-separated
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_CHAT_ID: str = ""
 
     # ── Application ──────────────────────────────────────────────────────────
     ENVIRONMENT: str = "development"

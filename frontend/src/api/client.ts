@@ -389,6 +389,9 @@ export interface ActivityItem {
 
 export interface RecentActivityResponse {
   items?: ActivityItem[];
+  recent_queries?: Array<{ id: string; question: string; query_type?: string; asked_by_name?: string; created_at: string }>;
+  recent_documents?: Array<{ id: string; original_filename: string; doc_type?: string; client_name?: string; uploaded_at: string }>;
+  recent_computations?: Array<{ id: string; computation_type?: string; result_summary?: string; client_name?: string; created_at: string }>;
 }
 
 export interface UpcomingTasksResponse {
@@ -899,6 +902,13 @@ export const dashboardApi = {
     api.get('/dashboard/compliance-calendar', { params: { months: months || 3 } }).then((r) => r.data),
   workload: (): Promise<WorkloadResponse> =>
     api.get('/dashboard/workload').then((r) => r.data),
+};
+
+// ── Waitlist (admin) ─────────────────────────────────────────
+export const waitlistApi = {
+  // Returns the CSV as a Blob; the Bearer token is attached by the request interceptor.
+  exportCsv: (): Promise<Blob> =>
+    api.get('/waitlist/export.csv', { responseType: 'blob' }).then((r) => r.data),
 };
 
 // ── Tasks Status ─────────────────────────────────────────

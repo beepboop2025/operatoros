@@ -29,6 +29,7 @@ import {
 import { formatDate } from '../utils/format';
 import { SkeletonCard } from './Skeleton';
 import { StatCard } from './textura';
+import ExportLeadsButton from './ExportLeadsButton';
 
 interface QuickAction {
   label: string;
@@ -93,15 +94,37 @@ export default function Dashboard() {
   const activityItems: ActivityItem[] = (() => {
     if (!activity) return [];
     if (Array.isArray(activity)) return activity;
-    return (activity as RecentActivityResponse).items || [];
+    const a = activity as RecentActivityResponse;
+    if (a.items?.length) return a.items;
+    // The API returns typed buckets (queries / computations / documents) rather than a
+    // flat `items` list — merge them into one time-sorted activity feed.
+    const merged: ActivityItem[] = [
+      ...(a.recent_queries ?? []).map((q) => ({
+        id: q.id, type: 'query', description: q.question,
+        client_name: q.asked_by_name, created_at: q.created_at,
+      })),
+      ...(a.recent_computations ?? []).map((c) => ({
+        id: c.id, type: 'computation',
+        description: c.result_summary || `Tax computation${c.computation_type ? ` · ${c.computation_type}` : ''}`,
+        client_name: c.client_name, created_at: c.created_at,
+      })),
+      ...(a.recent_documents ?? []).map((d) => ({
+        id: d.id, type: 'document', description: d.original_filename,
+        client_name: d.client_name, created_at: d.uploaded_at,
+      })),
+    ];
+    return merged.sort((x, y) => (y.created_at ?? '').localeCompare(x.created_at ?? ''));
   })();
 
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="animate-stagger-1">
-        <h1 className="text-2xl font-bold text-textura-text">Dashboard</h1>
-        <p className="text-sm text-textura-dim mt-1">Welcome back. Here is your practice overview.</p>
+      <div className="animate-stagger-1 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-textura-text">Dashboard</h1>
+          <p className="text-sm text-textura-dim mt-1">Welcome back. Here is your practice overview.</p>
+        </div>
+        <ExportLeadsButton />
       </div>
 
       {/* Stats row */}
