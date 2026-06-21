@@ -1,5 +1,29 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
+// ── Shared Error Helpers ─────────────────────────────────────
+
+export interface ApiError {
+  response?: {
+    data?: {
+      detail?: string;
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+export function getErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  if (err && typeof err === 'object') {
+    const ae = err as ApiError;
+    if (ae.response?.data?.detail) return ae.response.data.detail;
+    if (ae.response?.data?.message) return ae.response.data.message;
+    if ('message' in err && typeof (err as Error).message === 'string') {
+      return (err as Error).message;
+    }
+  }
+  return fallback;
+}
+
 // ── Shared Entity Interfaces ─────────────────────────────────
 
 export interface User {
@@ -383,6 +407,13 @@ export interface NoticeProcessResponse {
 export interface DraftNoticeResponse {
   draft?: string;
   response?: string;
+  draft_text?: string;
+  legal_references?: string[];
+  recommended_actions?: string[];
+}
+
+export interface SubmitNoticeResponseRequest {
+  response: string;
 }
 
 // ── List response helpers (APIs return varying shapes) ───────
@@ -425,6 +456,27 @@ const api: AxiosInstance = axios.create({
   timeout: 30000,
 });
 
+// Token-refresh bookkeeping (shared across all requests)
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string | null) => void> = [];
+
+function subscribeTokenRefresh(cb: (token: string | null) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function onRefreshed(token: string | null) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem('auditmind_token');
+  localStorage.removeItem('auditmind_user');
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
 // Request interceptor: attach JWT
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('auditmind_token');
@@ -434,17 +486,58 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Response interceptor: handle 401 and add retry for transient failures
+// Response interceptor: handle 401 (silent refresh), then transient failures
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auditmind_token');
-      localStorage.removeItem('auditmind_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+    const originalRequest = error.config as
+      | (InternalAxiosRequestConfig & { __skipRefresh?: boolean; __retryCount?: number })
+      | undefined;
+
+    if (error.response?.status === 401 && originalRequest) {
+      const url = originalRequest.url || '';
+      const isAuthRequest =
+        url === '/auth/refresh' ||
+        url === '/auth/login' ||
+        url === '/auth/register' ||
+        originalRequest.__skipRefresh;
+
+      if (isAuthRequest) {
+        clearAuthAndRedirect();
+        return Promise.reject(error);
       }
-      return Promise.reject(error);
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          subscribeTokenRefresh((token) => {
+            if (token) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            } else {
+              reject(error);
+            }
+          });
+        });
+      }
+
+      isRefreshing = true;
+      try {
+        const rs = await authApi.refresh();
+        const newToken = rs.access_token || rs.token || '';
+        if (!newToken) {
+          throw new Error('Refresh endpoint did not return a token');
+        }
+        localStorage.setItem('auditmind_token', newToken);
+        onRefreshed(newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        onRefreshed(null);
+        clearAuthAndRedirect();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
 
     // Automatic retry for transient failures (5xx / network errors)
@@ -480,6 +573,8 @@ export const authApi = {
     api.post('/auth/register', data).then((r) => r.data),
   getMe: (): Promise<User> =>
     api.get('/auth/me').then((r) => r.data),
+  refresh: (): Promise<LoginResponse> =>
+    api.post('/auth/refresh', {}, { __skipRefresh: true } as unknown as InternalAxiosRequestConfig).then((r) => r.data),
 };
 
 // ── Clients ───────────────────────────────────────────────
@@ -546,6 +641,8 @@ export const documentsApi = {
     api.post('/documents/search', { query, ...params }).then((r) => r.data),
   list: (params?: Record<string, unknown>): Promise<DocumentListResponse | Document[]> =>
     api.get('/documents', { params }).then((r) => r.data),
+  download: (id: string): Promise<Blob> =>
+    api.get(`/documents/${id}/download`, { responseType: 'blob' }).then((r) => r.data),
 };
 
 // ── Queries ───────────────────────────────────────────────
@@ -568,6 +665,8 @@ export const noticesApi = {
     api.post(`/notices/${id}/process`).then((r) => r.data),
   draftResponse: (id: string, data: DraftResponseRequest): Promise<DraftNoticeResponse> =>
     api.post(`/notices/${id}/draft-response`, data).then((r) => r.data),
+  submitResponse: (id: string, data: SubmitNoticeResponseRequest): Promise<Notice> =>
+    api.post(`/notices/${id}/submit-response`, data).then((r) => r.data),
 };
 
 // ── Dashboard ─────────────────────────────────────────────

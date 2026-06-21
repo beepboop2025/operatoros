@@ -1,14 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { clientsApi, complianceApi, documentsApi } from '../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { clientsApi, complianceApi, documentsApi, getErrorMessage } from '../api/client';
+import { useToast } from './Toast';
 import type {
   Client,
   ComplianceTask,
   Document,
-  ClientListResponse,
   ComplianceTaskListResponse,
   DocumentListResponse,
+  ClientUpdateRequest,
 } from '../api/client';
 import {
   ArrowLeft,
@@ -25,11 +26,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Edit,
+  X,
   LucideIcon,
 } from 'lucide-react';
 import { formatDate, statusColor } from '../utils/format';
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 interface TabItem {
   id: string;
@@ -46,7 +47,12 @@ const tabs: TabItem[] = [
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editForm, setEditForm] = useState<ClientUpdateRequest>({});
+  const [editError, setEditError] = useState<string>('');
 
   const { data: client, isLoading, isError } = useQuery<Client>({
     queryKey: ['clients', id],
@@ -65,6 +71,35 @@ export default function ClientDetail() {
     queryFn: () => documentsApi.list({ client_id: id }),
     enabled: Boolean(id),
   });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: ClientUpdateRequest) => clientsApi.update(id!, data),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['clients', id], updated);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Client updated successfully');
+      setIsEditing(false);
+      setEditError('');
+    },
+    onError: (err) => {
+      setEditError(getErrorMessage(err, 'Failed to update client'));
+    },
+  });
+
+  useEffect(() => {
+    if (client) {
+      setEditForm({
+        firm_name: client.firm_name,
+        pan: client.pan,
+        gstin: client.gstin,
+        entity_type: client.entity_type,
+        contact_person: client.contact_person,
+        email: client.email,
+        phone: client.phone,
+        status: client.status,
+      });
+    }
+  }, [client]);
 
   if (isLoading) {
     return (
@@ -158,6 +193,13 @@ export default function ClientDetail() {
           <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${statusColor(client.status || 'active')}`}>
             {client.status || 'Active'}
           </span>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-xl transition-colors"
+            title="Edit client"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -325,6 +367,179 @@ export default function ClientDetail() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Edit client modal */}
+      {isEditing && client && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-backdrop"
+          onClick={() => setIsEditing(false)}
+        >
+          <div
+            className="bg-[#161b26]/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-white/[0.08] w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+              <h3 className="text-lg font-semibold text-slate-100">Edit Client</h3>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                e.preventDefault();
+                setEditError('');
+                if (!editForm.firm_name?.trim()) {
+                  setEditError('Firm / client name is required');
+                  return;
+                }
+                if (editForm.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(editForm.pan)) {
+                  setEditError('PAN must be in format ABCDE1234F');
+                  return;
+                }
+                if (editForm.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(editForm.gstin)) {
+                  setEditError('GSTIN must be a valid 15-character number');
+                  return;
+                }
+                updateMutation.mutate(editForm);
+              }}
+              className="p-6 space-y-4"
+            >
+              {editError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
+                  {editError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Firm / Client Name *</label>
+                <input
+                  type="text"
+                  value={editForm.firm_name || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setEditForm((f) => ({ ...f, firm_name: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">PAN</label>
+                  <input
+                    type="text"
+                    value={editForm.pan || ''}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setEditForm((f) => ({ ...f, pan: e.target.value.toUpperCase() }))}
+                    maxLength={10}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none uppercase font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">GSTIN</label>
+                  <input
+                    type="text"
+                    value={editForm.gstin || ''}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setEditForm((f) => ({ ...f, gstin: e.target.value.toUpperCase() }))}
+                    maxLength={15}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none uppercase font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Entity Type</label>
+                <select
+                  value={editForm.entity_type || 'individual'}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    setEditForm((f) => ({ ...f, entity_type: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                >
+                  {[
+                    { value: 'individual', label: 'Individual' },
+                    { value: 'huf', label: 'HUF' },
+                    { value: 'partnership', label: 'Partnership' },
+                    { value: 'llp', label: 'LLP' },
+                    { value: 'private_limited', label: 'Private Limited' },
+                    { value: 'public_limited', label: 'Public Limited' },
+                    { value: 'trust', label: 'Trust' },
+                    { value: 'society', label: 'Society' },
+                  ].map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Contact Person</label>
+                <input
+                  type="text"
+                  value={editForm.contact_person || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setEditForm((f) => ({ ...f, contact_person: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email || ''}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setEditForm((f) => ({ ...f, email: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Phone</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone || ''}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Status</label>
+                <select
+                  value={editForm.status || 'active'}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    setEditForm((f) => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateMutation.isPending}
+                  className="px-5 py-2.5 text-sm font-medium gradient-brand text-white rounded-xl flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover-lift disabled:opacity-50 transition-all"
+                >
+                  {updateMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

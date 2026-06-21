@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { computeApi } from '../api/client';
+import { computeApi, getErrorMessage } from '../api/client';
 import { useToast } from './Toast';
 import type {
   IncomeTaxRequest,
@@ -261,7 +261,7 @@ function IncomeTaxTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
-          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed. Please check your inputs.'}
+          {getErrorMessage(mutation.error, 'Calculation failed. Please check your inputs.')}
         </div>
       )}
 
@@ -431,7 +431,7 @@ function TDSTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
-          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
+          {getErrorMessage(mutation.error, 'Calculation failed')}
         </div>
       )}
 
@@ -535,7 +535,7 @@ function GSTTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
-          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
+          {getErrorMessage(mutation.error, 'Calculation failed')}
         </div>
       )}
 
@@ -629,7 +629,7 @@ function CapitalGainsTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
-          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
+          {getErrorMessage(mutation.error, 'Calculation failed')}
         </div>
       )}
 
@@ -728,7 +728,7 @@ function InterestTab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
-          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
+          {getErrorMessage(mutation.error, 'Calculation failed')}
         </div>
       )}
 
@@ -812,7 +812,7 @@ function HRATab() {
 
       {mutation.isError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">
-          {(mutation.error as { response?: { data?: { detail?: string } } } & Error)?.response?.data?.detail || 'Calculation failed'}
+          {getErrorMessage(mutation.error, 'Calculation failed')}
         </div>
       )}
 

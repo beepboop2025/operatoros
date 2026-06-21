@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { queriesApi, clientsApi } from '../api/client';
+import { queriesApi, clientsApi, getErrorMessage } from '../api/client';
 import { useToast } from './Toast';
 import type {
   Client,
@@ -83,8 +83,7 @@ export default function QueryChat() {
       toast.success('Query processed successfully');
     },
     onError: (err) => {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      const errorMsg = axiosErr.response?.data?.detail || 'Failed to process query. Please try again.';
+      const errorMsg = getErrorMessage(err, 'Failed to process query. Please try again.');
       setConversation((prev) => [
         ...prev,
         {

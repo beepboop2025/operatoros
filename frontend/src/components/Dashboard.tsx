@@ -28,6 +28,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { formatDate } from '../utils/format';
+import { SkeletonCard } from './Skeleton';
 
 interface StatCardProps {
   title: string;
@@ -55,20 +56,6 @@ function StatCard({ title, value, icon: Icon, gradient, iconColor, glowClass, su
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColor} ${glowClass}`}>
           <Icon className="w-5 h-5" />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SkeletonCard() {
-  return (
-    <div className="card rounded-xl p-5">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <div className="skeleton w-24 h-4" />
-          <div className="skeleton w-16 h-8" />
-        </div>
-        <div className="skeleton w-10 h-10 rounded-xl" />
       </div>
     </div>
   );

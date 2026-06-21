@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, ChangeEvent, DragEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { documentsApi, clientsApi } from '../api/client';
+import { documentsApi, clientsApi, getErrorMessage } from '../api/client';
 import { useToast } from './Toast';
 import type {
   Client,
@@ -22,6 +22,7 @@ import {
   File,
   FileSpreadsheet,
   Image,
+  Download,
   LucideIcon,
 } from 'lucide-react';
 import { formatDate, formatDateTime, statusColor } from '../utils/format';
@@ -57,6 +58,7 @@ export default function DocumentManager() {
   const [uploadClient, setUploadClient] = useState<string>('');
   const [uploadDocType, setUploadDocType] = useState<string>('');
   const [selectedDoc, setSelectedDoc] = useState<DocType | null>(null);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   const params: Record<string, string> = {};
   if (filterClient) params.client_id = filterClient;
@@ -117,6 +119,26 @@ export default function DocumentManager() {
     if (!data) return [];
     if (Array.isArray(data)) return data;
     return data.items || data.documents || [];
+  };
+
+  const handleDownload = async (doc: DocType) => {
+    setIsDownloading(true);
+    try {
+      const blob = await documentsApi.download(doc.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.filename || doc.name || `document-${doc.id}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Download started');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Download failed'));
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const docList: DocType[] = searchQuery.length >= 3
@@ -206,7 +228,7 @@ export default function DocumentManager() {
         )}
         {uploadMutation.isError && (
           <div className="flex items-center justify-center gap-2 mt-4 text-sm text-red-400">
-            <AlertCircle className="w-4 h-4" /> {(uploadMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Upload failed'}
+            <AlertCircle className="w-4 h-4" /> {getErrorMessage(uploadMutation.error, 'Upload failed')}
           </div>
         )}
       </div>
@@ -353,6 +375,17 @@ export default function DocumentManager() {
                   </pre>
                 </div>
               )}
+
+              <div className="flex justify-end pt-2 border-t border-white/[0.06]">
+                <button
+                  onClick={() => handleDownload(selectedDoc)}
+                  disabled={isDownloading}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 text-white text-sm font-medium rounded-xl shadow-md shadow-blue-500/15 transition-all"
+                >
+                  {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download File
+                </button>
+              </div>
             </div>
           </div>
         </div>
