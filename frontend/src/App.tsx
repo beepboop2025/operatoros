@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
+import Landing from './components/Landing';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ClientList from './components/ClientList';
@@ -21,10 +22,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0f1219]">
+      <div className="flex items-center justify-center h-screen bg-textura-bg">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(59,130,246,0.3)]" />
-          <p className="text-slate-400 text-sm">Loading AuditMind...</p>
+          <div className="w-10 h-10 border-4 border-textura-accent border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(161,236,255,0.25)]" />
+          <p className="text-textura-muted text-sm">Loading OperatorOS...</p>
         </div>
       </div>
     );
@@ -42,6 +43,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route
         path="/*"
@@ -50,7 +52,7 @@ export default function App() {
             <Layout>
               <div key={location.pathname} className="page-transition">
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/clients" element={<ClientList />} />
                   <Route path="/clients/:id" element={<ClientDetail />} />
                   <Route path="/compliance" element={<ComplianceCalendar />} />
@@ -58,7 +60,7 @@ export default function App() {
                   <Route path="/compute" element={<TaxComputer />} />
                   <Route path="/queries" element={<QueryChat />} />
                   <Route path="/notices" element={<NoticeManager />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </div>
             </Layout>

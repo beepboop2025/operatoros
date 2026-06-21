@@ -7,6 +7,7 @@ import type {
   DraftNoticeResponse,
 } from '../api/client';
 import { useToast } from './Toast';
+import { Button, Select, Field, Textarea } from './textura';
 import {
   AlertTriangle,
   Upload,
@@ -127,15 +128,15 @@ export default function NoticeManager() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-stagger-1">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Notices</h1>
-          <p className="text-sm text-slate-400">Track and respond to tax notices</p>
+          <h1 className="text-2xl font-bold text-textura-text">Notices</h1>
+          <p className="text-sm text-textura-dim">Track and respond to tax notices</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <select
+            <Select
               value={filterStatus}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
-              className="pl-8 pr-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+              className="pl-8 appearance-none"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -143,29 +144,30 @@ export default function NoticeManager() {
               <option value="draft_ready">Draft Ready</option>
               <option value="responded">Responded</option>
               <option value="closed">Closed</option>
-            </select>
-            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+            </Select>
+            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-textura-muted" />
           </div>
-          <button
+          <Button
+            variant="gradient"
+            icon={<Upload className="w-4 h-4" />}
             onClick={() => setShowUpload(!showUpload)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover-lift transition-all"
           >
-            <Upload className="w-4 h-4" /> Upload Notice
-          </button>
+            Upload Notice
+          </Button>
         </div>
       </div>
 
       {/* Upload panel */}
       {showUpload && (
         <div className="card p-6 text-center animate-fade-in">
-          <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-          <p className="text-sm text-slate-300 mb-3">Upload a notice document for processing</p>
-          <button
+          <Upload className="w-8 h-8 text-textura-muted mx-auto mb-2" />
+          <p className="text-sm text-textura-dim mb-3">Upload a notice document for processing</p>
+          <Button
+            variant="gradient"
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-md shadow-blue-500/15"
           >
             Choose File
-          </button>
+          </Button>
           <input
             ref={fileInputRef}
             type="file"
@@ -174,7 +176,7 @@ export default function NoticeManager() {
             onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files?.length) handleFileUpload(e.target.files); e.target.value = ''; }}
           />
           {uploadMutation.isPending && (
-            <div className="flex items-center justify-center gap-2 mt-3 text-sm text-blue-400">
+            <div className="flex items-center justify-center gap-2 mt-3 text-sm text-textura-accent">
               <Loader2 className="w-4 h-4 animate-spin" /> Uploading and processing...
             </div>
           )}
@@ -190,17 +192,17 @@ export default function NoticeManager() {
       <div className="card overflow-hidden animate-stagger-2">
         {isLoading ? (
           <div className="p-12 text-center">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-            <p className="text-sm text-slate-400 mt-2">Loading notices...</p>
+            <Loader2 className="w-6 h-6 animate-spin text-textura-accent mx-auto" />
+            <p className="text-sm text-textura-dim mt-2">Loading notices...</p>
           </div>
         ) : noticeList.length === 0 ? (
           <div className="p-12 text-center">
-            <AlertTriangle className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-300 font-medium">No notices found</p>
-            <p className="text-sm text-slate-500 mt-1">Upload a notice to get started</p>
+            <AlertTriangle className="w-10 h-10 text-textura-muted mx-auto mb-3" />
+            <p className="text-textura-dim font-medium">No notices found</p>
+            <p className="text-sm text-textura-muted mt-1">Upload a notice to get started</p>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.03]">
+          <div className="divide-y divide-textura-line-subtle">
             {noticeList.map((notice, i) => {
               const Icon = noticeTypeIcon(notice.notice_type || notice.type);
               return (
@@ -215,27 +217,27 @@ export default function NoticeManager() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-200 truncate">
+                      <p className="text-sm font-medium text-textura-text truncate">
                         {notice.title || notice.notice_type || 'Tax Notice'}
                       </p>
                       {notice.urgency && urgencyBadge(notice.urgency)}
                     </div>
                     <div className="flex gap-3 mt-0.5">
-                      {notice.client_name && <span className="text-xs text-slate-500">{notice.client_name}</span>}
-                      {notice.section && <span className="text-xs text-slate-500">Section {notice.section}</span>}
-                      <span className="text-xs text-slate-500">{formatDate(notice.notice_date || notice.created_at)}</span>
+                      {notice.client_name && <span className="text-xs text-textura-muted">{notice.client_name}</span>}
+                      {notice.section && <span className="text-xs text-textura-muted">Section {notice.section}</span>}
+                      <span className="text-xs text-textura-muted">{formatDate(notice.notice_date || notice.created_at)}</span>
                     </div>
                   </div>
                   {notice.response_due_date && (
                     <div className="hidden sm:block text-right shrink-0">
-                      <p className="text-xs text-slate-500">Response Due</p>
-                      <p className="text-xs font-medium text-slate-300">{formatDate(notice.response_due_date)}</p>
+                      <p className="text-xs text-textura-muted">Response Due</p>
+                      <p className="text-xs font-medium text-textura-dim">{formatDate(notice.response_due_date)}</p>
                     </div>
                   )}
                   <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${statusColor(notice.status || 'pending')}`}>
                     {notice.status || 'Pending'}
                   </span>
-                  <Eye className="w-4 h-4 text-slate-500 shrink-0" />
+                  <Eye className="w-4 h-4 text-textura-muted shrink-0" />
                 </div>
               );
             })}
@@ -247,12 +249,12 @@ export default function NoticeManager() {
       {selectedNotice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-backdrop" onClick={() => setSelectedNotice(null)}>
           <div
-            className="bg-[#161b26]/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-white/[0.08] w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto animate-scale-in"
+            className="bg-textura-panel-raised/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-textura-line w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-textura-line-subtle">
               <div>
-                <h3 className="text-lg font-semibold text-slate-100">
+                <h3 className="text-lg font-semibold text-textura-text">
                   {selectedNotice.title || selectedNotice.notice_type || 'Tax Notice'}
                 </h3>
                 <div className="flex items-center gap-2 mt-1">
@@ -262,7 +264,7 @@ export default function NoticeManager() {
                   {selectedNotice.urgency && urgencyBadge(selectedNotice.urgency)}
                 </div>
               </div>
-              <button onClick={() => setSelectedNotice(null)} className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-colors">
+              <button onClick={() => setSelectedNotice(null)} className="p-1.5 text-textura-dim hover:text-textura-text hover:bg-textura-panel-raised rounded-lg transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -271,35 +273,35 @@ export default function NoticeManager() {
               {/* Info grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-slate-500">Client</p>
-                  <p className="text-slate-200 font-medium">{selectedNotice.client_name || '--'}</p>
+                  <p className="text-xs text-textura-muted">Client</p>
+                  <p className="text-textura-text font-medium">{selectedNotice.client_name || '--'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Section</p>
-                  <p className="text-slate-200 font-medium">{selectedNotice.section || '--'}</p>
+                  <p className="text-xs text-textura-muted">Section</p>
+                  <p className="text-textura-text font-medium">{selectedNotice.section || '--'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Assessment Year</p>
-                  <p className="text-slate-200 font-medium">{selectedNotice.assessment_year || '--'}</p>
+                  <p className="text-xs text-textura-muted">Assessment Year</p>
+                  <p className="text-textura-text font-medium">{selectedNotice.assessment_year || '--'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Notice Date</p>
-                  <p className="text-slate-300">{formatDate(selectedNotice.notice_date || selectedNotice.created_at)}</p>
+                  <p className="text-xs text-textura-muted">Notice Date</p>
+                  <p className="text-textura-dim">{formatDate(selectedNotice.notice_date || selectedNotice.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Response Due</p>
-                  <p className="text-slate-200 font-medium">{formatDate(selectedNotice.response_due_date)}</p>
+                  <p className="text-xs text-textura-muted">Response Due</p>
+                  <p className="text-textura-text font-medium">{formatDate(selectedNotice.response_due_date)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">DIN</p>
-                  <p className="text-slate-300 font-mono text-xs">{selectedNotice.din || '--'}</p>
+                  <p className="text-xs text-textura-muted">DIN</p>
+                  <p className="text-textura-dim font-mono text-xs">{selectedNotice.din || '--'}</p>
                 </div>
               </div>
 
               {selectedNotice.summary && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Summary</p>
-                  <div className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-xl text-sm text-slate-300 leading-relaxed">
+                  <p className="text-xs font-semibold text-textura-muted uppercase mb-1">Summary</p>
+                  <div className="p-4 bg-textura-panel-raised/40 border border-textura-line-subtle rounded-xl text-sm text-textura-dim leading-relaxed">
                     {selectedNotice.summary}
                   </div>
                 </div>
@@ -307,12 +309,12 @@ export default function NoticeManager() {
 
               {selectedNotice.issues && selectedNotice.issues.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Issues Raised</p>
+                  <p className="text-xs font-semibold text-textura-muted uppercase mb-2">Issues Raised</p>
                   <ul className="space-y-1.5">
                     {selectedNotice.issues.map((issue, idx) => {
                       const text = typeof issue === 'string' ? issue : issue.description || issue.issue || '';
                       return (
-                        <li key={`${selectedNotice.id}-issue-${text.slice(0, 20)}-${idx}`} className="flex items-start gap-2 text-sm text-slate-300">
+                        <li key={`${selectedNotice.id}-issue-${text.slice(0, 20)}-${idx}`} className="flex items-start gap-2 text-sm text-textura-dim">
                           <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
                           {text}
                         </li>
@@ -324,14 +326,14 @@ export default function NoticeManager() {
 
               {selectedNotice.draft_response && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Draft Response</p>
-                  <div className="p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-xl text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-xs font-semibold text-textura-muted uppercase mb-1">Draft Response</p>
+                  <div className="p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-xl text-sm text-textura-text leading-relaxed whitespace-pre-wrap">
                     {selectedNotice.draft_response}
                   </div>
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-3 pt-2 border-t border-white/[0.06]">
+              <div className="flex flex-wrap gap-3 pt-2 border-t border-textura-line-subtle">
                 {selectedNotice.status === 'pending' && (
                   <button
                     onClick={() => processMutation.mutate(selectedNotice.id)}
@@ -342,20 +344,17 @@ export default function NoticeManager() {
                     Process Notice
                   </button>
                 )}
-                <button
+                <Button
+                  variant="gradient"
+                  icon={<Send className="w-4 h-4" />}
+                  loading={draftMutation.isPending && draftingId === selectedNotice.id}
                   onClick={() => {
                     setDraftingId(selectedNotice.id);
                     draftMutation.mutate({ id: selectedNotice.id, data: {} });
                   }}
-                  disabled={draftMutation.isPending && draftingId === selectedNotice.id}
-                  className="px-4 py-2.5 gradient-brand hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/15 transition-all"
                 >
-                  {draftMutation.isPending && draftingId === selectedNotice.id
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <Send className="w-4 h-4" />
-                  }
                   Draft Response
-                </button>
+                </Button>
               </div>
 
               {draftMutation.isError && (
@@ -375,43 +374,42 @@ export default function NoticeManager() {
           onClick={() => setDraftModalOpen(false)}
         >
           <div
-            className="bg-[#161b26]/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-white/[0.08] w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto animate-scale-in"
+            className="bg-textura-panel-raised/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-textura-line w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-textura-line-subtle">
               <div>
-                <h3 className="text-lg font-semibold text-slate-100">Review Draft Response</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-lg font-semibold text-textura-text">Review Draft Response</h3>
+                <p className="text-xs text-textura-muted mt-0.5">
                   {selectedNotice.client_name || 'Client'} · {selectedNotice.notice_type || selectedNotice.type || 'Notice'}
                 </p>
               </div>
               <button
                 onClick={() => setDraftModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-colors"
+                className="p-1.5 text-textura-dim hover:text-textura-text hover:bg-textura-panel-raised rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="p-6 space-y-5">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">Editable Draft</label>
-                <textarea
+              <Field label="Editable Draft">
+                <Textarea
                   value={draftText}
                   onChange={(e) => setDraftText(e.target.value)}
                   rows={12}
-                  className="w-full px-4 py-3 rounded-xl text-sm text-slate-200 bg-white/[0.02] border border-white/[0.06] outline-none focus:border-blue-500/40 resize-none"
+                  className="resize-none"
                 />
-              </div>
+              </Field>
 
               {(draftMeta.legal_references?.length || draftMeta.recommended_actions?.length) ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {draftMeta.legal_references && draftMeta.legal_references.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Legal References</p>
+                      <p className="text-xs font-semibold text-textura-muted uppercase mb-2">Legal References</p>
                       <ul className="space-y-1.5">
                         {draftMeta.legal_references.map((ref, idx) => (
-                          <li key={`ref-${idx}`} className="text-xs text-slate-400 flex items-start gap-2">
+                          <li key={`ref-${idx}`} className="text-xs text-textura-dim flex items-start gap-2">
                             <AlertCircle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
                             {ref}
                           </li>
@@ -421,10 +419,10 @@ export default function NoticeManager() {
                   )}
                   {draftMeta.recommended_actions && draftMeta.recommended_actions.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Recommended Actions</p>
+                      <p className="text-xs font-semibold text-textura-muted uppercase mb-2">Recommended Actions</p>
                       <ul className="space-y-1.5">
                         {draftMeta.recommended_actions.map((action, idx) => (
-                          <li key={`action-${idx}`} className="text-xs text-slate-400 flex items-start gap-2">
+                          <li key={`action-${idx}`} className="text-xs text-textura-dim flex items-start gap-2">
                             <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />
                             {action}
                           </li>
@@ -441,21 +439,22 @@ export default function NoticeManager() {
                 </p>
               )}
 
-              <div className="flex justify-end gap-3 pt-2 border-t border-white/[0.06]">
-                <button
+              <div className="flex justify-end gap-3 pt-2 border-t border-textura-line-subtle">
+                <Button
+                  variant="ghost"
                   onClick={() => setDraftModalOpen(false)}
-                  className="px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] rounded-xl transition-colors"
                 >
                   Close
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="gradient"
+                  icon={<Send className="w-4 h-4" />}
+                  loading={submitResponseMutation.isPending}
+                  disabled={!draftText.trim()}
                   onClick={() => submitResponseMutation.mutate({ id: selectedNotice.id, response: draftText })}
-                  disabled={submitResponseMutation.isPending || !draftText.trim()}
-                  className="px-5 py-2.5 gradient-brand hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-50 text-white text-sm font-medium rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/15 transition-all"
                 >
-                  {submitResponseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Submit Response
-                </button>
+                </Button>
               </div>
             </div>
           </div>

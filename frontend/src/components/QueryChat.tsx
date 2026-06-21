@@ -17,13 +17,13 @@ import {
   MessageSquare,
   User,
   Bot,
-  Clock,
   BookOpen,
   ChevronRight,
   History,
   X,
 } from 'lucide-react';
 import { formatDateTime } from '../utils/format';
+import { Panel, Button, Input, Select } from './textura';
 
 interface ChatMessage {
   id: string;
@@ -152,80 +152,83 @@ export default function QueryChat() {
         {showHistory && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-md lg:hidden animate-backdrop" onClick={() => setShowHistory(false)} />
         )}
-        <div className={`
-          ${showHistory ? 'fixed right-0 top-0 h-full w-80 z-50' : ''}
-          lg:relative lg:w-72 lg:h-full
-          bg-[#161b26]/95 backdrop-blur-xl rounded-xl border border-white/[0.06] flex flex-col overflow-hidden
-        `}>
-          <div className="px-4 py-3 border-b border-white/[0.04] flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold text-slate-300 flex items-center gap-2">
+        <Panel
+          className={`
+            ${showHistory ? 'fixed right-0 top-0 h-full w-80 z-50' : ''}
+            lg:relative lg:w-72 lg:h-full
+            flex flex-col
+          `}
+          overflowHidden
+        >
+          <div className="px-4 py-3 border-b border-textura-line-subtle flex items-center justify-between">
+            <h3 className="text-[13px] font-semibold text-textura-dim flex items-center gap-2">
               <History className="w-4 h-4" /> Query History
             </h3>
-            <button className="lg:hidden p-1 text-slate-500 hover:text-slate-300 transition-colors" onClick={() => setShowHistory(false)}>
+            <button className="lg:hidden p-1 text-textura-muted hover:text-textura-dim transition-colors" onClick={() => setShowHistory(false)}>
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {historyList.length === 0 ? (
               <div className="p-6 text-center">
-                <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                <p className="text-xs text-slate-500">No queries yet</p>
+                <MessageSquare className="w-8 h-8 text-textura-muted mx-auto mb-2" />
+                <p className="text-xs text-textura-muted">No queries yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.03]">
+              <div className="divide-y divide-textura-line-subtle">
                 {historyList.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => loadHistoryItem(item)}
                     className="w-full text-left px-4 py-3 row-hover transition-colors"
                   >
-                    <p className="text-sm text-slate-300 truncate">{item.question || item.query}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(item.created_at)}</p>
+                    <p className="text-sm text-textura-dim truncate">{item.question || item.query}</p>
+                    <p className="text-xs text-textura-muted mt-0.5">{formatDateTime(item.created_at)}</p>
                   </button>
                 ))}
               </div>
             )}
           </div>
-        </div>
+        </Panel>
       </div>
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col card overflow-hidden">
+      <Panel className="flex-1 flex flex-col overflow-hidden">
         {/* Chat header */}
-        <div className="px-5 py-3 border-b border-white/[0.04] flex items-center justify-between shrink-0">
+        <div className="px-5 py-3 border-b border-textura-line-subtle flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <button
-              className="lg:hidden p-1.5 text-slate-400 hover:bg-white/[0.06] rounded-lg transition-colors"
+              className="lg:hidden p-1.5 text-textura-dim hover:bg-textura-panel-raised rounded-lg transition-colors"
               onClick={() => setShowHistory(true)}
             >
               <History className="w-4 h-4" />
             </button>
             <div>
-              <h2 className="text-[13px] font-semibold text-slate-200">AI Tax & Compliance Assistant</h2>
-              <p className="text-xs text-slate-500">Ask questions about tax law, compliance, or client matters</p>
+              <h2 className="text-[13px] font-semibold text-textura-text">AI Tax &amp; Compliance Assistant</h2>
+              <p className="text-xs text-textura-muted">Ask questions about tax law, compliance, or client matters</p>
             </div>
           </div>
-          <select
+          <Select
             value={clientId}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => setClientId(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-xs outline-none"
+            className="w-auto"
           >
             <option value="">General Query</option>
             {clientList.map((c) => (
               <option key={c.id} value={c.id}>{c.firm_name || c.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {conversation.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center animate-fade-in">
-              <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mb-4 glow-blue">
-                <Bot className="w-8 h-8 text-blue-400" />
+              <div className="w-16 h-16 bg-textura-accent/10 border border-textura-accent/20 rounded-2xl flex items-center justify-center mb-4 glow-blue">
+                <Bot className="w-8 h-8 text-textura-accent" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-200">How can I help you?</h3>
-              <p className="text-sm text-slate-400 mt-1 max-w-md">
+              <h3 className="text-lg font-semibold text-textura-text">How can I help you?</h3>
+              <p className="text-sm text-textura-dim mt-1 max-w-md">
                 Ask about income tax provisions, compliance deadlines, TDS rates, GST rules, or anything related to your clients.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6 max-w-lg">
@@ -238,7 +241,7 @@ export default function QueryChat() {
                   <button
                     key={q}
                     onClick={() => { setQuestion(q); inputRef.current?.focus(); }}
-                    className="text-left p-3 bg-white/[0.03] hover:bg-blue-500/8 rounded-xl text-xs text-slate-400 hover:text-blue-300 transition-all border border-white/[0.06] hover:border-blue-500/20"
+                    className="text-left p-3 bg-textura-panel-raised/50 hover:bg-textura-accent/[0.08] rounded-xl text-xs text-textura-dim hover:text-textura-accent transition-all border border-textura-line-subtle hover:border-textura-accent/20"
                   >
                     <ChevronRight className="w-3 h-3 inline mr-1" />{q}
                   </button>
@@ -250,18 +253,18 @@ export default function QueryChat() {
           {conversation.map((msg) => (
             <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''} animate-fade-in`}>
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 bg-blue-500/15 border border-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
-                  <Bot className="w-4 h-4 text-blue-400" />
+                <div className="w-8 h-8 bg-textura-accent/15 border border-textura-accent/20 rounded-lg flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-textura-accent" />
                 </div>
               )}
               <div className={`max-w-[75%] ${msg.role === 'user' ? 'order-first' : ''}`}>
                 <div
                   className={`px-4 py-3 rounded-2xl text-sm leading-relaxed
                     ${msg.role === 'user'
-                      ? 'gradient-brand text-white rounded-br-md shadow-lg shadow-blue-500/15'
+                      ? 'gradient-brand text-white rounded-br-md shadow-lg shadow-textura-accent/15'
                       : msg.isError
                         ? 'bg-red-500/10 text-red-300 border border-red-500/20 rounded-bl-md'
-                        : 'bg-white/[0.04] text-slate-200 border border-white/[0.06] rounded-bl-md'
+                        : 'bg-textura-panel-raised/60 text-textura-text border border-textura-line-subtle rounded-bl-md'
                     }
                   `}
                 >
@@ -283,13 +286,13 @@ export default function QueryChat() {
                     })}
                   </div>
                 )}
-                <p className="text-xs text-slate-600 mt-1">
+                <p className="text-xs text-textura-muted mt-1">
                   {new Date(msg.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
               {msg.role === 'user' && (
-                <div className="w-8 h-8 bg-slate-700/50 border border-white/[0.06] rounded-lg flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-slate-300" />
+                <div className="w-8 h-8 bg-textura-panel-raised border border-textura-line-subtle rounded-lg flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 text-textura-dim" />
                 </div>
               )}
             </div>
@@ -297,12 +300,12 @@ export default function QueryChat() {
 
           {submitMutation.isPending && (
             <div className="flex gap-3 animate-fade-in">
-              <div className="w-8 h-8 bg-blue-500/15 border border-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 text-blue-400" />
+              <div className="w-8 h-8 bg-textura-accent/15 border border-textura-accent/20 rounded-lg flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-textura-accent" />
               </div>
-              <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                <span className="text-sm text-slate-400">Thinking...</span>
+              <div className="bg-textura-panel-raised/60 border border-textura-line-subtle rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-textura-accent" />
+                <span className="text-sm text-textura-dim">Thinking...</span>
               </div>
             </div>
           )}
@@ -311,29 +314,29 @@ export default function QueryChat() {
         </div>
 
         {/* Input area */}
-        <div className="p-4 border-t border-white/[0.04] shrink-0">
+        <div className="p-4 border-t border-textura-line-subtle shrink-0">
           <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
+            <Input
               ref={inputRef}
               type="text"
               value={question}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setQuestion(e.target.value)}
               placeholder="Ask a question about tax, compliance, or your clients..."
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none"
+              className="flex-1"
               disabled={submitMutation.isPending}
             />
-            <button
+            <Button
               type="submit"
+              variant="gradient"
+              icon={<Send className="w-4 h-4" />}
               disabled={!question.trim() || submitMutation.isPending}
-              className="px-4 py-2.5 gradient-brand hover:shadow-lg hover:shadow-blue-500/20 disabled:opacity-30
-                text-white rounded-xl flex items-center gap-2 text-sm font-medium shrink-0 shadow-md shadow-blue-500/15 hover-lift transition-all"
+              className="shrink-0"
             >
-              <Send className="w-4 h-4" />
               <span className="hidden sm:inline">Send</span>
-            </button>
+            </Button>
           </form>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }

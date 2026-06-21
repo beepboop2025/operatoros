@@ -25,3 +25,9 @@ These are endpoints/functionality the frontend now expects but that do not exist
 5. **Notice response fields in API contract (schema gap)**
    - `NoticeResponse` does not expose `response_draft`, `filed_response`, `section`, `assessment_year`, `din`, `title`, `issues`, etc. The frontend interface includes these fields, but the list/detail endpoints only return `description` (mapped from `summary`), `notice_type`, `issue_date`, `response_deadline`, and status.
    - As a result, existing drafts shown in the notice detail modal rely on the separate `draft-response` endpoint rather than the list/detail payload.
+
+---
+
+## Phase 6 — blocked / out-of-scope items
+
+Phase 6 was a frontend-only reskin (Textura design system + landing + dashboard reskin). The backend gaps above were **not** addressed in this phase and remain blocked for a subsequent backend pass. No tax rates, treaty values, thresholds, or customs duties were invented in this phase.

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { clientsApi } from '../api/client';
@@ -13,16 +13,26 @@ import {
   X,
   Loader2,
   Users,
-  Building2,
   Filter,
   Download,
-  Trash2,
-  UserPlus,
   CheckSquare,
   Square,
 } from 'lucide-react';
 import { statusColor } from '../utils/format';
 import { AxiosError } from 'axios';
+import {
+  Button,
+  Panel,
+  Field,
+  Input,
+  Select,
+  DataTable,
+  DataTableHeader,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableCell,
+} from './textura';
 
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
@@ -91,119 +101,104 @@ function AddClientModal({ onClose, onSuccess }: AddClientModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md animate-backdrop" onClick={onClose}>
-      <div className="bg-[#161b26]/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/50 border border-white/[0.08] w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-scale-in" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-          <h3 className="text-lg font-semibold text-slate-100">Add New Client</h3>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] rounded-lg transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 animate-fade-in">{error}</div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Firm / Client Name *</label>
-            <input
-              type="text"
-              value={form.firm_name}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => update('firm_name', e.target.value)}
-              placeholder="e.g. Sharma & Associates"
-              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">PAN</label>
-              <input
-                type="text"
-                value={form.pan || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => update('pan', e.target.value.toUpperCase())}
-                placeholder="ABCDE1234F"
-                maxLength={10}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none uppercase font-mono"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">GSTIN</label>
-              <input
-                type="text"
-                value={form.gstin || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => update('gstin', e.target.value.toUpperCase())}
-                placeholder="22ABCDE1234F1Z5"
-                maxLength={15}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none uppercase font-mono"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Entity Type</label>
-            <select
-              value={form.entity_type || 'individual'}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => update('entity_type', e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-            >
-              {entityTypes.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1.5">Contact Person</label>
-            <input
-              type="text"
-              value={form.contact_person || ''}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => update('contact_person', e.target.value)}
-              placeholder="Full Name"
-              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={form.email || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => update('email', e.target.value)}
-                placeholder="client@example.com"
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Phone</label>
-              <input
-                type="tel"
-                value={form.phone || ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => update('phone', e.target.value)}
-                placeholder="+91 98765 43210"
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
+      <div onClick={(e) => e.stopPropagation()}>
+        <Panel className="bg-textura-panel/95 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-scale-in">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-textura-line-subtle">
+            <h3 className="text-lg font-semibold text-textura-text">Add New Client</h3>
             <button
-              type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] rounded-xl transition-colors"
+              className="p-1.5 text-textura-dim hover:text-textura-text hover:bg-textura-panel-raised rounded-lg transition-colors"
+              aria-label="Close"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="px-5 py-2.5 text-sm font-medium gradient-brand text-white rounded-xl flex items-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover-lift disabled:opacity-50 transition-all"
-            >
-              {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Add Client
+              <X className="w-5 h-5" />
             </button>
           </div>
-        </form>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {error && (
+              <div className="p-3 bg-danger/10 border border-danger/20 rounded-xl text-sm text-danger animate-fade-in">{error}</div>
+            )}
+
+            <Field label="Firm / Client Name *">
+              <Input
+                type="text"
+                value={form.firm_name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => update('firm_name', e.target.value)}
+                placeholder="e.g. Sharma & Associates"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="PAN">
+                <Input
+                  type="text"
+                  value={form.pan || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => update('pan', e.target.value.toUpperCase())}
+                  placeholder="ABCDE1234F"
+                  maxLength={10}
+                  className="uppercase font-mono"
+                />
+              </Field>
+              <Field label="GSTIN">
+                <Input
+                  type="text"
+                  value={form.gstin || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => update('gstin', e.target.value.toUpperCase())}
+                  placeholder="22ABCDE1234F1Z5"
+                  maxLength={15}
+                  className="uppercase font-mono"
+                />
+              </Field>
+            </div>
+
+            <Field label="Entity Type">
+              <Select
+                value={form.entity_type || 'individual'}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => update('entity_type', e.target.value)}
+              >
+                {entityTypes.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field label="Contact Person">
+              <Input
+                type="text"
+                value={form.contact_person || ''}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => update('contact_person', e.target.value)}
+                placeholder="Full Name"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={form.email || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => update('email', e.target.value)}
+                  placeholder="client@example.com"
+                />
+              </Field>
+              <Field label="Phone">
+                <Input
+                  type="tel"
+                  value={form.phone || ''}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => update('phone', e.target.value)}
+                  placeholder="+91 98765 43210"
+                />
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="gradient" loading={mutation.isPending}>
+                Add Client
+              </Button>
+            </div>
+          </form>
+        </Panel>
       </div>
     </div>
   );
@@ -290,8 +285,8 @@ export default function ClientList() {
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronDown className="w-3 h-3 opacity-30" />;
     return sortDir === 'asc'
-      ? <ChevronUp className="w-3 h-3 text-blue-400" />
-      : <ChevronDown className="w-3 h-3 text-blue-400" />;
+      ? <ChevronUp className="w-3 h-3 text-textura-accent" />
+      : <ChevronDown className="w-3 h-3 text-textura-accent" />;
   };
 
   const entityTypes = [
@@ -315,49 +310,53 @@ export default function ClientList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-stagger-1">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Clients</h1>
-          <p className="text-sm text-slate-400">Manage your client portfolio</p>
+          <h1 className="text-2xl font-bold text-textura-text">Clients</h1>
+          <p className="text-sm text-textura-dim">Manage your client portfolio</p>
         </div>
-        <button
+        <Button
+          variant="gradient"
+          icon={<Plus className="w-4 h-4" />}
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover-lift transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Client
-        </button>
+          Add Client
+        </Button>
       </div>
 
       {/* Search bar and filters */}
-      <div className="card p-4 animate-stagger-2 space-y-3">
+      <Panel className="p-4 animate-stagger-2 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-textura-muted" />
+            <Input
               type="text"
               value={searchInput}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value)}
               placeholder="Search by name, PAN, or GSTIN..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none"
+              className="pl-10"
             />
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex items-center gap-2 px-3 py-2.5 border text-sm font-medium rounded-xl transition-colors ${
               showFilters || filterEntityType || filterStatus
-                ? 'border-blue-500/30 text-blue-400 bg-blue-500/5'
-                : 'border-white/[0.08] text-slate-300 hover:bg-white/[0.04]'
+                ? 'border-textura-accent/30 text-textura-accent bg-textura-accent/5'
+                : 'border-textura-line text-textura-dim hover:bg-textura-panel-raised'
             }`}
           >
             <Filter className="w-4 h-4" /> Filters
             {(filterEntityType || filterStatus) && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+              <span className="ml-1 px-1.5 py-0.5 bg-textura-accent/20 text-textura-accent text-xs rounded-full">
                 {[filterEntityType, filterStatus].filter(Boolean).length}
               </span>
             )}
           </button>
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-textura-dim">
               <span>{selectedIds.size} selected</span>
-              <button
+              <Button
+                variant="success"
+                size="sm"
+                icon={<Download className="w-3 h-3" />}
                 onClick={() => {
                   // Export selected as CSV
                   const selected = sortedClients.filter(c => selectedIds.has(c.id));
@@ -371,171 +370,169 @@ export default function ClientList() {
                   a.href = url; a.download = 'clients_export.csv'; a.click();
                   URL.revokeObjectURL(url);
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/5 transition-colors"
               >
-                <Download className="w-3 h-3" /> Export CSV
-              </button>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-              >
+                Export CSV
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
                 Clear
-              </button>
+              </Button>
             </div>
           )}
         </div>
 
         {showFilters && (
-          <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-white/[0.04] animate-fade-in">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-textura-line-subtle animate-fade-in">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Entity Type</label>
-              <select
+              <label className="block text-xs font-medium text-textura-muted mb-1">Entity Type</label>
+              <Select
                 value={filterEntityType}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterEntityType(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm outline-none min-w-[160px]"
+                className="min-w-[160px]"
               >
                 <option value="">All Types</option>
                 {entityTypes.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
-              <select
+              <label className="block text-xs font-medium text-textura-muted mb-1">Status</label>
+              <Select
                 value={filterStatus}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm outline-none min-w-[140px]"
+                className="min-w-[140px]"
               >
                 <option value="">All</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-              </select>
+              </Select>
             </div>
             {(filterEntityType || filterStatus) && (
               <button
                 onClick={() => { setFilterEntityType(''); setFilterStatus(''); }}
-                className="self-end px-3 py-2 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                className="self-end px-3 py-2 text-xs text-textura-muted hover:text-textura-text transition-colors"
               >
                 Clear Filters
               </button>
             )}
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* Table */}
-      <div className="card overflow-hidden animate-stagger-3">
+      <Panel className="overflow-hidden animate-stagger-3">
         {isLoading ? (
           <div className="p-8 text-center">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-            <p className="text-sm text-slate-400 mt-2">Loading clients...</p>
+            <Loader2 className="w-6 h-6 animate-spin text-textura-accent mx-auto" />
+            <p className="text-sm text-textura-dim mt-2">Loading clients...</p>
           </div>
         ) : isError ? (
-          <div className="p-8 text-center text-sm text-red-400">Failed to load clients. Please try again.</div>
+          <div className="p-8 text-center text-sm text-danger">Failed to load clients. Please try again.</div>
         ) : clients.length === 0 ? (
           <div className="p-12 text-center">
-            <Users className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-            <p className="text-slate-300 font-medium">No clients found</p>
-            <p className="text-sm text-slate-500 mt-1">
+            <Users className="w-10 h-10 text-textura-muted mx-auto mb-3" />
+            <p className="text-textura-text font-medium">No clients found</p>
+            <p className="text-sm text-textura-muted mt-1">
               {search ? 'Try a different search term' : 'Add your first client to get started'}
             </p>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-white/[0.02] border-b border-white/[0.06]">
-                    <th className="px-3 py-3 w-10">
-                      <button onClick={toggleSelectAll} className="text-slate-500 hover:text-slate-300 transition-colors">
-                        {selectedIds.size === sortedClients.length && sortedClients.length > 0
-                          ? <CheckSquare className="w-4 h-4 text-blue-400" />
-                          : <Square className="w-4 h-4" />
-                        }
-                      </button>
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>
-                      <span className="inline-flex items-center gap-1">Firm Name <SortIcon field="firm_name" /></span>
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:table-cell cursor-pointer select-none" onClick={() => toggleSort('pan')}>
-                      <span className="inline-flex items-center gap-1">PAN <SortIcon field="pan" /></span>
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell cursor-pointer select-none" onClick={() => toggleSort('entity_type')}>
-                      <span className="inline-flex items-center gap-1">Entity Type <SortIcon field="entity_type" /></span>
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Contact</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider cursor-pointer select-none" onClick={() => toggleSort('status')}>
-                      <span className="inline-flex items-center gap-1">Status <SortIcon field="status" /></span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.03]">
-                  {sortedClients.map((client, i) => (
-                    <tr
-                      key={client.id}
-                      className="row-hover cursor-pointer animate-row"
-                      style={{ animationDelay: `${i * 30}ms` }}
-                    >
-                      <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); toggleSelect(client.id); }}>
-                        {selectedIds.has(client.id)
-                          ? <CheckSquare className="w-4 h-4 text-blue-400" />
-                          : <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
-                        }
-                      </td>
-                      <td className="px-5 py-3" onClick={() => navigate(`/clients/${client.id}`)}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-500/15 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
-                            {(client.firm_name || client.name || '?')[0].toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-200 truncate">{client.firm_name || client.name}</p>
-                            <p className="text-xs text-slate-500 truncate sm:hidden">{client.pan || ''}</p>
-                          </div>
+            <DataTable>
+              <DataTableHeader>
+                <th className="px-3 py-3 w-10">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="text-textura-muted hover:text-textura-text transition-colors"
+                    aria-label="Select all"
+                  >
+                    {selectedIds.size === sortedClients.length && sortedClients.length > 0
+                      ? <CheckSquare className="w-4 h-4 text-textura-accent" />
+                      : <Square className="w-4 h-4" />
+                    }
+                  </button>
+                </th>
+                <DataTableHead onClick={() => toggleSort('firm_name')}>
+                  <span className="inline-flex items-center gap-1">Firm Name <SortIcon field="firm_name" /></span>
+                </DataTableHead>
+                <DataTableHead onClick={() => toggleSort('pan')} className="hidden sm:table-cell">
+                  <span className="inline-flex items-center gap-1">PAN <SortIcon field="pan" /></span>
+                </DataTableHead>
+                <DataTableHead onClick={() => toggleSort('entity_type')} className="hidden md:table-cell">
+                  <span className="inline-flex items-center gap-1">Entity Type <SortIcon field="entity_type" /></span>
+                </DataTableHead>
+                <DataTableHead className="hidden lg:table-cell">Contact</DataTableHead>
+                <DataTableHead onClick={() => toggleSort('status')}>
+                  <span className="inline-flex items-center gap-1">Status <SortIcon field="status" /></span>
+                </DataTableHead>
+              </DataTableHeader>
+              <DataTableBody>
+                {sortedClients.map((client) => (
+                  <DataTableRow
+                    key={client.id}
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                    className="animate-row"
+                  >
+                    <td className="px-3 py-3" onClick={(e) => { e.stopPropagation(); toggleSelect(client.id); }}>
+                      {selectedIds.has(client.id)
+                        ? <CheckSquare className="w-4 h-4 text-textura-accent" />
+                        : <Square className="w-4 h-4 text-textura-muted hover:text-textura-dim" />
+                      }
+                    </td>
+                    <DataTableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-textura-accent/10 border border-textura-accent/20 text-textura-accent rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
+                          {(client.firm_name || client.name || '?')[0].toUpperCase()}
                         </div>
-                      </td>
-                      <td className="px-5 py-3 text-sm text-slate-400 font-mono hidden sm:table-cell">
-                        {client.pan || '--'}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-slate-400 hidden md:table-cell">
-                        {entityLabel(client.entity_type)}
-                      </td>
-                      <td className="px-5 py-3 hidden lg:table-cell">
-                        <div className="text-sm text-slate-300">{client.contact_person || '--'}</div>
-                        <div className="text-xs text-slate-500">{client.email || client.phone || ''}</div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${statusColor(client.status || 'active')}`}>
-                          {client.status || 'Active'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-textura-text truncate">{client.firm_name || client.name}</p>
+                          <p className="text-xs text-textura-muted truncate sm:hidden">{client.pan || ''}</p>
+                        </div>
+                      </div>
+                    </DataTableCell>
+                    <DataTableCell className="text-textura-dim font-mono hidden sm:table-cell">
+                      {client.pan || '--'}
+                    </DataTableCell>
+                    <DataTableCell className="text-textura-dim hidden md:table-cell">
+                      {entityLabel(client.entity_type)}
+                    </DataTableCell>
+                    <DataTableCell className="hidden lg:table-cell">
+                      <div className="text-sm text-textura-text">{client.contact_person || '--'}</div>
+                      <div className="text-xs text-textura-muted">{client.email || client.phone || ''}</div>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <span className={`inline-block px-2.5 py-0.5 text-xs font-medium rounded-full ${statusColor(client.status || 'active')}`}>
+                        {client.status || 'Active'}
+                      </span>
+                    </DataTableCell>
+                  </DataTableRow>
+                ))}
+              </DataTableBody>
+            </DataTable>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.04]">
-                <p className="text-sm text-slate-400">
-                  Showing {((page - 1) * pageSize) + 1}--{Math.min(page * pageSize, total)} of {total}
+              <div className="flex items-center justify-between px-5 py-3 border-t border-textura-line-subtle">
+                <p className="text-sm text-textura-dim">
+                  Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}
                 </p>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="p-1.5 rounded-lg text-slate-400 hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+                    className="p-1.5 rounded-lg text-textura-dim hover:bg-textura-panel-raised disabled:opacity-30 transition-colors"
+                    aria-label="Previous page"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="px-3 py-1 text-sm text-slate-400">
+                  <span className="px-3 py-1 text-sm text-textura-dim">
                     {page} / {totalPages}
                   </span>
                   <button
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="p-1.5 rounded-lg text-slate-400 hover:bg-white/[0.06] disabled:opacity-30 transition-colors"
+                    className="p-1.5 rounded-lg text-textura-dim hover:bg-textura-panel-raised disabled:opacity-30 transition-colors"
+                    aria-label="Next page"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
@@ -544,7 +541,7 @@ export default function ClientList() {
             )}
           </>
         )}
-      </div>
+      </Panel>
 
       {showAddModal && <AddClientModal onClose={() => setShowAddModal(false)} />}
     </div>
