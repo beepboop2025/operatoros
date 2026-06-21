@@ -1,4 +1,4 @@
-"""Shared fixtures for backend tests."""
+"""Shared pytest fixtures and helpers for OperatorOS backend tests."""
 from __future__ import annotations
 
 from datetime import date
@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 
+from app.config import get_settings
 from app.services.tax_engine import (
     AgeCategory,
     AssetType,
@@ -16,6 +17,12 @@ from app.services.tax_engine import (
     InterestRequest,
     TDSRequest,
 )
+
+
+@pytest.fixture(autouse=True)
+def clear_settings_cache() -> None:
+    """Ensure each test starts with a fresh settings instance."""
+    get_settings.cache_clear()
 
 
 def D(value: str | int | float) -> Decimal:

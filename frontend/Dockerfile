@@ -9,6 +9,23 @@ RUN npm install
 COPY . .
 RUN npm run build
 
+# ── Development stage ─────────────────────────────────────────────────────────
+FROM node:20-alpine AS development
+
+WORKDIR /app
+
+# VITE_API_URL is consumed by vite.config.ts at runtime in dev mode.
+ENV VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+
+COPY package.json package-lock.json* ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
 # ── Production stage ─────────────────────────────────────────────────────────
 FROM nginx:alpine AS production
 
