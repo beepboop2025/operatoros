@@ -16,8 +16,25 @@ from app.middleware.audit import get_client_ip, log_action
 from app.models.client import Client
 from app.models.notice import Notice
 from app.models.user import User
+from app.services.communication_drafter import CommunicationDrafter
+from app.services.openrouter import OpenRouterClient
 
 router = APIRouter(tags=["drafts"])
+
+
+# --------------------------------------------------------------------------- #
+#  Service dependency
+# --------------------------------------------------------------------------- #
+
+_drafter_singleton: CommunicationDrafter | None = None
+
+
+def get_drafter() -> CommunicationDrafter:
+    """Return the shared CommunicationDrafter instance."""
+    global _drafter_singleton
+    if _drafter_singleton is None:
+        _drafter_singleton = CommunicationDrafter(openrouter=OpenRouterClient())
+    return _drafter_singleton
 
 
 # --------------------------------------------------------------------------- #
@@ -83,16 +100,20 @@ async def draft_response(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    drafter: CommunicationDrafter = Depends(get_drafter),
 ) -> DraftResponseResult:
-    """Generate a draft response to an IT/GST notice.
+    """Generate a draft response to an IT/GST notice using the LLM.
 
-    **Note:** This is a placeholder implementation. In production, the LLM will
-    analyze the notice content, relevant tax provisions, and client-specific
-    context to generate a tailored response.
+    The LLM analyzes the notice content, relevant tax provisions, and any
+    additional context to generate a tailored response. If the LLM service is
+    unavailable, a 503 is returned so the caller knows drafting failed.
     """
 
     # Validate notice exists
-    result = await db.execute(select(Notice).where(Notice.id == body.notice_id))
+    result = await db.execute(
+        select(Notice)
+        .where(Notice.id == body.notice_id)
+    )
     notice = result.scalar_one_or_none()
     if notice is None:
         raise HTTPException(
@@ -100,25 +121,32 @@ async def draft_response(
             detail="Notice not found",
         )
 
-    draft_text = (
-        f"DRAFT RESPONSE — {notice.notice_type.value.upper()}\n"
-        f"{'=' * 60}\n\n"
-        f"To,\nThe Assessing Officer / Proper Officer,\n\n"
-        f"Subject: Response to notice dated {notice.notice_date.isoformat()}\n\n"
-        f"Respected Sir/Madam,\n\n"
-        f"We write this letter on behalf of our client in response to the "
-        f"above-referenced notice. After careful review of the notice and "
-        f"supporting records, we submit the following:\n\n"
-        f"1. We acknowledge receipt of the notice.\n"
-        f"2. We have reviewed the points raised therein.\n"
-        f"3. Our detailed submissions with supporting documents are enclosed.\n\n"
-        f"We request your good self to consider our submissions and dispose of "
-        f"the matter accordingly.\n\n"
-        f"Yours faithfully,\n"
-        f"[Authorized Representative]\n"
-        f"[Firm Name]\n"
-        f"[UDIN: ____________]"
+    client = notice.client
+    client_details = (
+        f"Client: {client.firm_name}\n"
+        f"PAN: {client.pan}\n"
+        f"GSTIN: {client.gstin or 'N/A'}\n"
+        f"Entity type: {client.entity_type.value}"
     )
+    notice_summary = (
+        f"Notice type: {notice.notice_type.value}\n"
+        f"Notice date: {notice.notice_date.isoformat()}\n"
+        f"Response deadline: {notice.response_deadline.isoformat() if notice.response_deadline else 'N/A'}\n"
+        f"Summary: {notice.summary or 'N/A'}"
+    )
+    legal_position = body.additional_context or "No additional legal position provided."
+
+    try:
+        draft_text = await drafter.draft_notice_response(
+            notice_summary=notice_summary,
+            client_details=client_details,
+            legal_position=legal_position,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Unable to generate draft response at this time: {exc}",
+        ) from exc
 
     await log_action(
         db,
@@ -132,15 +160,8 @@ async def draft_response(
     return DraftResponseResult(
         notice_id=notice.id,
         draft_text=draft_text,
-        legal_references=[
-            "Relevant sections of the Income Tax Act, 1961",
-            "Central Goods and Services Tax Act, 2017 (if applicable)",
-        ],
-        recommended_actions=[
-            "Review and customize the draft before filing",
-            "Attach supporting documents",
-            "Generate UDIN from ICAI portal before submission",
-        ],
+        legal_references=[],
+        recommended_actions=[],
     )
 
 
@@ -159,13 +180,9 @@ async def draft_advisory(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    drafter: CommunicationDrafter = Depends(get_drafter),
 ) -> AdvisoryResult:
-    """Generate a draft advisory for a client on a specific topic.
-
-    **Note:** This is a placeholder implementation. In production, the LLM will
-    synthesize relevant tax laws, recent amendments, circulars, and the client's
-    specific situation to produce actionable advisory.
-    """
+    """Generate a draft advisory for a client on a specific topic using the LLM."""
 
     # Validate client
     result = await db.execute(select(Client).where(Client.id == body.client_id))
@@ -176,29 +193,19 @@ async def draft_advisory(
             detail="Client not found",
         )
 
-    advisory_text = (
-        f"CLIENT ADVISORY\n"
-        f"{'=' * 60}\n\n"
-        f"Client: {client.firm_name}\n"
-        f"Topic: {body.topic}\n"
-        f"Date: {__import__('datetime').date.today().isoformat()}\n\n"
-        f"Dear {client.contact_person},\n\n"
-        f"This advisory is prepared in response to your query regarding "
-        f"'{body.topic}'.\n\n"
-        f"Based on our analysis of the applicable provisions and your specific "
-        f"circumstances, we advise as follows:\n\n"
-        f"[Advisory content will be generated by the AI system based on:\n"
-        f" - Applicable tax laws and recent amendments\n"
-        f" - CBDT/CBIC circulars and notifications\n"
-        f" - Relevant judicial precedents\n"
-        f" - Your specific financial situation]\n\n"
-        f"Please note that this advisory is based on the current understanding "
-        f"of applicable laws and is subject to change based on future amendments "
-        f"or judicial interpretations.\n\n"
-        f"For any clarification, please feel free to reach out.\n\n"
-        f"Regards,\n"
-        f"{current_user.full_name}"
-    )
+    details = body.context or "No additional details provided."
+
+    try:
+        advisory_text = await drafter.draft_advisory(
+            topic=body.topic,
+            client_name=client.firm_name,
+            details=details,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Unable to generate advisory at this time: {exc}",
+        ) from exc
 
     await log_action(
         db,
@@ -214,11 +221,7 @@ async def draft_advisory(
         client_id=client.id,
         topic=body.topic,
         advisory_text=advisory_text,
-        references=[
-            "Income Tax Act, 1961",
-            "Central Goods and Services Tax Act, 2017",
-            "Companies Act, 2013",
-        ],
+        references=[],
     )
 
 
@@ -237,8 +240,9 @@ async def draft_engagement_letter(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    drafter: CommunicationDrafter = Depends(get_drafter),
 ) -> EngagementLetterResult:
-    """Generate an engagement letter template for a client.
+    """Generate an engagement letter for a client using the LLM.
 
     Produces a customizable letter covering the specified services,
     fees, and validity period.
@@ -253,66 +257,19 @@ async def draft_engagement_letter(
             detail="Client not found",
         )
 
-    import datetime
+    fees = body.fee_amount or "To be mutually agreed upon"
 
-    today = datetime.date.today()
-    end_date = today + datetime.timedelta(days=body.validity_months * 30)
-
-    services_text = "\n".join(
-        f"   {i + 1}. {service}" for i, service in enumerate(body.services)
-    )
-
-    fee_clause = (
-        f"The professional fees for the above services shall be {body.fee_amount}."
-        if body.fee_amount
-        else "The professional fees for the above services shall be mutually agreed upon."
-    )
-
-    letter_text = (
-        f"ENGAGEMENT LETTER\n"
-        f"{'=' * 60}\n\n"
-        f"Date: {today.isoformat()}\n\n"
-        f"To,\n"
-        f"{client.contact_person}\n"
-        f"{client.firm_name}\n"
-        f"PAN: {client.pan}\n\n"
-        f"Dear {client.contact_person},\n\n"
-        f"We are pleased to confirm our engagement as your professional advisors. "
-        f"This letter sets out the terms of our engagement.\n\n"
-        f"SCOPE OF SERVICES\n"
-        f"{'-' * 40}\n"
-        f"{services_text}\n\n"
-        f"PROFESSIONAL FEES\n"
-        f"{'-' * 40}\n"
-        f"{fee_clause}\n"
-        f"Payment terms: Within 15 days of invoice date.\n"
-        f"GST will be charged as applicable.\n\n"
-        f"PERIOD OF ENGAGEMENT\n"
-        f"{'-' * 40}\n"
-        f"This engagement shall be effective from {today.isoformat()} to "
-        f"{end_date.isoformat()} ({body.validity_months} months).\n\n"
-        f"MUTUAL OBLIGATIONS\n"
-        f"{'-' * 40}\n"
-        f"- We shall perform our duties with due professional care and diligence.\n"
-        f"- The client shall provide all necessary information and documents in a timely manner.\n"
-        f"- All information shared shall be treated as strictly confidential.\n\n"
-        f"LIMITATION OF LIABILITY\n"
-        f"{'-' * 40}\n"
-        f"Our liability shall be limited to the fees received for the specific "
-        f"engagement in question.\n\n"
-        f"Please sign and return a copy of this letter to confirm your agreement "
-        f"with the above terms.\n\n"
-        f"Yours faithfully,\n\n"
-        f"________________________\n"
-        f"{current_user.full_name}\n"
-        f"[Firm Name]\n"
-        f"[Membership No.]\n\n"
-        f"ACCEPTED AND AGREED:\n\n"
-        f"________________________\n"
-        f"{client.contact_person}\n"
-        f"{client.firm_name}\n"
-        f"Date: ________________"
-    )
+    try:
+        letter_text = await drafter.draft_engagement_letter(
+            client_name=client.firm_name,
+            services=body.services,
+            fees=fees,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Unable to generate engagement letter at this time: {exc}",
+        ) from exc
 
     await log_action(
         db,

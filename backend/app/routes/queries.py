@@ -94,24 +94,33 @@ async def submit_query(
             detail=str(exc),
         )
     except RAGEmbeddingError as exc:
-        _logger.warning("RAG embedding failed, falling back to placeholder: %s", exc)
+        _logger.warning("RAG embedding failed, falling back to graceful response: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Embedding service unavailable: {exc}",
         )
     except RAGLLMError as exc:
-        _logger.warning("RAG LLM failed, falling back to placeholder: %s", exc)
+        _logger.warning("RAG LLM failed, falling back to graceful response: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"LLM service unavailable: {exc}",
         )
     except Exception as exc:
-        _logger.error("RAG pipeline unexpected error: %s", exc, exc_info=True)
-        # Fall back to placeholder so the user at least gets a record saved
+        _logger.error(
+            "RAG pipeline unexpected error for user=%s client=%s question='%s...': %s",
+            current_user.id,
+            body.client_id,
+            body.question[:80],
+            exc,
+            exc_info=True,
+        )
+        # Graceful degradation: the query is still saved and the caller is told
+        # explicitly that the AI service is unavailable (see ``fallback`` flag).
         rag_result = None
 
     # ── Build response fields ────────────────────────────────────────────
-    if rag_result is not None:
+    fallback = rag_result is None
+    if not fallback:
         response_text = rag_result["response"]
         sources_cited = rag_result.get("sources", [])
         query_type = rag_result.get("query_type", "general")
@@ -119,12 +128,13 @@ async def submit_query(
         tokens_used = rag_result.get("tokens_used", 0)
     else:
         response_text = (
-            "Your query has been received but the AI service is temporarily "
-            "unavailable. Please try again shortly."
+            "The AI service is currently unavailable, so we could not generate "
+            "an answer to your query. Your question has been saved; please try "
+            "again once the service is back online."
         )
         sources_cited = []
         query_type = "general"
-        model_used = "placeholder"
+        model_used = "unavailable"
         tokens_used = 0
 
     # ── Persist ──────────────────────────────────────────────────────────
@@ -166,6 +176,7 @@ async def submit_query(
         asked_by=query_record.asked_by,
         client_id=query_record.client_id,
         created_at=query_record.created_at,
+        fallback=fallback,
     )
 
 
@@ -214,6 +225,7 @@ async def list_queries(
             asked_by=r.asked_by,
             client_id=r.client_id,
             created_at=r.created_at,
+            fallback=r.model_used in ("unavailable", "placeholder"),
         )
         for r in records
     ]
@@ -260,4 +272,5 @@ async def get_query(
         asked_by=record.asked_by,
         client_id=record.client_id,
         created_at=record.created_at,
+        fallback=record.model_used in ("unavailable", "placeholder"),
     )
