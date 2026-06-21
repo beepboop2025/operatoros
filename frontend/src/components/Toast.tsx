@@ -1,4 +1,5 @@
-import { createContext, useContext, useCallback, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useState, ReactNode } from 'react';
+import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,30 +32,26 @@ export function useToast(): ToastContextType {
 
 // ── Styles per type ──────────────────────────────────────────────────────────
 
-const TYPE_STYLES: Record<ToastType, { bg: string; border: string; icon: string; iconPath: string }> = {
+const TYPE_STYLES: Record<ToastType, { border: string; iconColor: string; Icon: typeof CheckCircle }> = {
   success: {
-    bg: 'rgba(16, 185, 129, 0.1)',
-    border: 'rgba(16, 185, 129, 0.25)',
-    icon: '#10b981',
-    iconPath: 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+    border: 'border-success/25',
+    iconColor: 'text-success',
+    Icon: CheckCircle,
   },
   error: {
-    bg: 'rgba(239, 68, 68, 0.1)',
-    border: 'rgba(239, 68, 68, 0.25)',
-    icon: '#ef4444',
-    iconPath: 'M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z',
+    border: 'border-danger/25',
+    iconColor: 'text-danger',
+    Icon: AlertCircle,
   },
   warning: {
-    bg: 'rgba(245, 158, 11, 0.1)',
-    border: 'rgba(245, 158, 11, 0.25)',
-    icon: '#f59e0b',
-    iconPath: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z',
+    border: 'border-warning/25',
+    iconColor: 'text-warning',
+    Icon: AlertTriangle,
   },
   info: {
-    bg: 'rgba(59, 130, 246, 0.1)',
-    border: 'rgba(59, 130, 246, 0.25)',
-    icon: '#3b82f6',
-    iconPath: 'm11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z',
+    border: 'border-textura-accent/25',
+    iconColor: 'text-textura-accent',
+    Icon: Info,
   },
 };
 
@@ -126,42 +123,29 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 function ToastCard({ item, onClose }: { item: ToastItem; onClose: () => void }) {
   const style = TYPE_STYLES[item.type];
+  const Icon = style.Icon;
 
   return (
     <div
-      className="pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg"
+      className={`pointer-events-auto flex items-start gap-3 rounded-2xl px-4 py-3 border bg-textura-panel/85 backdrop-blur-xl shadow-2xl shadow-black/40 ${style.border}`}
       style={{
-        background: style.bg,
-        border: `1px solid ${style.border}`,
-        backdropFilter: 'blur(16px)',
         animation: item.exiting
           ? `toast-exit ${EXIT_ANIMATION_MS}ms cubic-bezier(0.4, 0, 1, 1) forwards`
-          : `toast-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+          : `toast-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
       }}
       role="alert"
     >
-      {/* Icon */}
-      <svg
-        className="w-5 h-5 mt-0.5 flex-shrink-0"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke={style.icon}
-        strokeWidth={1.5}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d={style.iconPath} />
-      </svg>
+      <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${style.iconColor}`} />
 
-      <p className="text-sm text-slate-200 flex-1">{item.message}</p>
+      <p className="text-sm text-textura-text flex-1">{item.message}</p>
 
       {/* Close button */}
       <button
         onClick={onClose}
-        className="flex-shrink-0 text-slate-500 hover:text-slate-300 transition-colors mt-0.5"
+        className="flex-shrink-0 text-textura-muted hover:text-textura-text transition-colors mt-0.5"
         aria-label="Dismiss"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-        </svg>
+        <X className="w-4 h-4" />
       </button>
     </div>
   );
