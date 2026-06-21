@@ -39,7 +39,11 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
-    DEFAULT_LLM_MODEL: str = "anthropic/claude-sonnet-4-20250514"
+    DEFAULT_LLM_MODEL: str = "anthropic/claude-sonnet-4.6"
+    # Force a single model across all task routing (blank = use per-task routing).
+    # Set to a free model (e.g. "meta-llama/llama-3.3-70b-instruct:free") on deploys
+    # without OpenRouter credits.
+    LLM_MODEL_OVERRIDE: str = ""
 
     # ── Free LLM router (perpetually-free providers) ───────────────────────────
     # When true, low-stakes task types (classification/factual/bulk) are served by

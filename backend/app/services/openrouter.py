@@ -36,20 +36,20 @@ _CHEAP_TASKS = {"classification", "factual", "bulk"}
 # ── Model routing table ─────────────────────────────────────────────────────
 
 _MODEL_ROUTING: Dict[str, str] = {
-    "factual": "anthropic/claude-haiku-4-5-20251001",
-    "advisory": "anthropic/claude-sonnet-4-20250514",
-    "computation": "anthropic/claude-sonnet-4-20250514",
-    "drafting": "anthropic/claude-sonnet-4-20250514",
-    "summarization": "anthropic/claude-sonnet-4-20250514",
-    "bulk": "anthropic/claude-haiku-4-5-20251001",
-    "classification": "anthropic/claude-haiku-4-5-20251001",
+    "factual": "anthropic/claude-haiku-4.5",
+    "advisory": "anthropic/claude-sonnet-4.6",
+    "computation": "anthropic/claude-sonnet-4.6",
+    "drafting": "anthropic/claude-sonnet-4.6",
+    "summarization": "anthropic/claude-sonnet-4.6",
+    "bulk": "anthropic/claude-haiku-4.5",
+    "classification": "anthropic/claude-haiku-4.5",
 }
 
 # ── Approximate cost per 1M tokens (input/output) ──────────────────────────
 
 _COST_PER_MILLION: Dict[str, Dict[str, float]] = {
-    "anthropic/claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
-    "anthropic/claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
+    "anthropic/claude-haiku-4.5": {"input": 1.00, "output": 5.00},
+    "anthropic/claude-sonnet-4.6": {"input": 3.00, "output": 15.00},
 }
 
 MAX_RETRIES = 3
@@ -178,7 +178,10 @@ class OpenRouterClient:
         max_tokens: int = 4096,
     ) -> Dict[str, Any]:
         """Send a chat-completion request to paid OpenRouter with retry logic."""
-        resolved_model = model or settings.DEFAULT_LLM_MODEL
+        # LLM_MODEL_OVERRIDE (when set) forces a single model regardless of per-task
+        # routing — lets a deploy without paid credits point at a free model, e.g.
+        # "meta-llama/llama-3.3-70b-instruct:free", without code changes.
+        resolved_model = settings.LLM_MODEL_OVERRIDE or model or settings.DEFAULT_LLM_MODEL
         payload = {
             "model": resolved_model,
             "messages": messages,
