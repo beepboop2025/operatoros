@@ -84,3 +84,9 @@ class NoticeResponseDraft(BaseModel):
     draft_text: str
     legal_references: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
+
+
+class NoticeSubmitResponseRequest(BaseModel):
+    """Persist a filed response against a notice."""
+
+    response_text: str = Field(..., min_length=1)

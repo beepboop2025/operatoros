@@ -39,6 +39,8 @@ from app.models.computation import TaxComputation  # noqa: E402
 from app.models.notice import Notice  # noqa: E402
 from app.models.audit_log import AuditLog  # noqa: E402
 from app.models.firm import Firm  # noqa: E402
+from app.models.notification import Notification  # noqa: E402
+from app.models.tax_intel import TaxIntel  # noqa: E402
 
 __all__ = [
     "Base",
@@ -51,4 +53,6 @@ __all__ = [
     "Notice",
     "AuditLog",
     "Firm",
+    "Notification",
+    "TaxIntel",
 ]

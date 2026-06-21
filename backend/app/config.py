@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     # ── PDF ────────────────────────────────────────────────────────────────
     PDF_OUTPUT_DIR: str = "/app/reports"
 
+    # ── Ingest / scraper security ────────────────────────────────────────────
+    INGEST_API_KEY: str = ""
+
     # ── Application ──────────────────────────────────────────────────────────
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"

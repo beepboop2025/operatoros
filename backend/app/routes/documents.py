@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -360,6 +361,49 @@ async def get_document(
         )
 
     return DocumentResponse.model_validate(document)
+
+
+# --------------------------------------------------------------------------- #
+#  GET /{document_id}/download — Stream the stored file
+# --------------------------------------------------------------------------- #
+
+
+@router.get(
+    "/{document_id}/download",
+    summary="Download document file",
+)
+async def download_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    """Stream the stored file for a document.
+
+    Returns the file with the original filename in the Content-Disposition
+    header. If the file is missing on disk, a 404 is returned.
+    """
+    result = await db.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    file_path = Path(document.file_url)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on disk",
+        )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.original_filename,
+        media_type="application/octet-stream",
+    )
 
 
 # --------------------------------------------------------------------------- #
