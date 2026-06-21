@@ -1,3 +1,6 @@
+![tests](https://github.com/beepboop2025/operatoros/actions/workflows/tests.yml/badge.svg)
+![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+
 <div align="center">
 
 <br />
