@@ -141,6 +141,19 @@ cd frontend && npm install && npm run dev      # → http://localhost:5173
 
 ---
 
+## License
+
+OperatorOS is **source-available** — not open source. You're welcome to read it, study
+how it's built, fork it on GitHub, and run it locally. But **commercial use, hosting it as
+a service, or building a competing product requires a separate commercial license.** See
+[`LICENSE.md`](LICENSE.md).
+
+> The engines are public. The **CA-verified data that makes them trustworthy is not** — and
+> that's the part worth licensing. Curious what the full, data-complete product can do?
+> Open an issue. ★ the repo to follow where this goes.
+
+---
+
 <div align="center">
 <sub>Built with the <strong>Textura</strong> design language · pure-black stage, icy <code>#A1ECFF</code> + peach <code>#FFAB98</code> accents, Gilda Display × Lato.</sub>
 <br /><br />

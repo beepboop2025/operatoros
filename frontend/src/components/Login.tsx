@@ -59,8 +59,8 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 gradient-brand rounded-2xl mb-5 shadow-2xl shadow-textura-accent/30 glow-blue">
             <Shield className="w-8 h-8 text-textura-text" />
           </div>
-          <h1 className="text-3xl font-bold text-textura-text tracking-tight">AuditMind</h1>
-          <p className="text-textura-muted mt-2 text-sm">Intelligent Tax & Compliance Platform</p>
+          <h1 className="text-3xl font-bold text-textura-text tracking-tight">OperatorOS</h1>
+          <p className="text-textura-muted mt-2 text-sm">Cross-border tax intelligence for NRIs</p>
         </div>
 
         {/* Login card */}
