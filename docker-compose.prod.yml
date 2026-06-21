@@ -54,6 +54,28 @@ services:
           memory: 256M
     restart: always
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: operatoros-frontend
+    expose:
+      - "80"
+    environment:
+      - VITE_API_URL=/api
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    restart: always
+    networks:
+      - operatoros-net
+
   caddy:
     image: caddy:2-alpine
     container_name: operatoros-caddy
@@ -67,6 +89,7 @@ services:
     depends_on:
       - fastapi
       - n8n
+      - frontend
     deploy:
       resources:
         limits:
@@ -84,3 +107,8 @@ volumes:
     name: operatoros_caddy_data
   caddy_config:
     name: operatoros_caddy_config
+
+networks:
+  operatoros-net:
+    name: operatoros-net
+    driver: bridge

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import List
+from urllib.parse import urlparse, urlunparse
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
 
     # ── Redis ────────────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://redis:6379/0"
+    REDIS_PASSWORD: str = ""
 
     # ── Security ─────────────────────────────────────────────────────────────
     SECRET_KEY: str = "change-me-to-random-64-char-string"
@@ -97,6 +99,35 @@ class Settings(BaseSettings):
                 "OPENROUTER_API_KEY is empty — AI/LLM features will not work"
             )
         return v
+
+    @model_validator(mode="after")
+    def inject_redis_password(self) -> "Settings":
+        """Embed REDIS_PASSWORD into Redis/Celery URLs when one is supplied."""
+        if self.REDIS_PASSWORD:
+            self.REDIS_URL = self._redis_url_with_password(self.REDIS_URL)
+            self.CELERY_BROKER_URL = self._redis_url_with_password(self.CELERY_BROKER_URL)
+            self.CELERY_RESULT_BACKEND = self._redis_url_with_password(self.CELERY_RESULT_BACKEND)
+        return self
+
+    @model_validator(mode="after")
+    def validate_usable_llm_provider(self) -> "Settings":
+        """Fail fast if no LLM provider is usable."""
+        if not self.FREE_LLM_ENABLED and not self.OPENROUTER_API_KEY:
+            raise ValueError(
+                "No usable LLM provider: FREE_LLM_ENABLED is false and OPENROUTER_API_KEY is empty. "
+                "Set OPENROUTER_API_KEY or enable the free LLM router and provide at least one provider key."
+            )
+        return self
+
+    def _redis_url_with_password(self, url: str) -> str:
+        """Return a Redis URL with the configured password inserted."""
+        parsed = urlparse(url)
+        # netloc is built as [user[:password]@]host[:port]
+        userinfo = f":{self.REDIS_PASSWORD}" if self.REDIS_PASSWORD else ""
+        netloc = f"{userinfo}@{parsed.hostname or 'redis'}"
+        if parsed.port:
+            netloc = f"{netloc}:{parsed.port}"
+        return urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
 
 
 @lru_cache(maxsize=1)
