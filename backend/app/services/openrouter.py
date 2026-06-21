@@ -19,6 +19,20 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Optional free-provider router (vendored shared package). Guarded so the app
+# still runs if the package is absent.
+try:
+    from free_llm_router import AllProvidersFailed, FreeLLMRouter
+    from free_llm_router.policy import smart_order
+
+    _FREE_AVAILABLE = True
+except Exception:  # pragma: no cover - import guard
+    _FREE_AVAILABLE = False
+
+# Low-stakes task types routed to free providers FIRST (paid as fallback).
+# Everything else stays paid-first (free only as a last-resort fallback).
+_CHEAP_TASKS = {"classification", "factual", "bulk"}
+
 # ── Model routing table ─────────────────────────────────────────────────────
 
 _MODEL_ROUTING: Dict[str, str] = {
@@ -49,6 +63,17 @@ class OpenRouterClient:
         self._client: Optional[httpx.AsyncClient] = None
         self._total_tokens_used: int = 0
         self._total_cost_usd: float = 0.0
+        self._free_router: Optional["FreeLLMRouter"] = None
+
+    # ── Free-provider router (lazy) ──────────────────────────────────────────
+
+    def _get_free_router(self) -> Optional["FreeLLMRouter"]:
+        """Lazily build the free router, or return None if disabled/unavailable."""
+        if not (_FREE_AVAILABLE and settings.FREE_LLM_ENABLED):
+            return None
+        if self._free_router is None:
+            self._free_router = FreeLLMRouter(order_fn=smart_order)
+        return self._free_router
 
     # ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -90,19 +115,69 @@ class OpenRouterClient:
         model: Optional[str] = None,
         temperature: float = 0.3,
         max_tokens: int = 4096,
+        task_type: Optional[str] = None,
+        prefer_free: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
-        Send a chat-completion request to OpenRouter with retry logic.
+        Route a chat-completion across free and paid providers.
 
-        Returns
-        -------
-        dict with keys:
-            text       – the assistant's response content
-            model      – actual model used
-            tokens     – dict of prompt/completion/total token counts
-            latency_ms – round-trip time in milliseconds
-            cost_usd   – estimated cost of this call
+        Direction depends on stakes:
+          * Cheap task types (classification/factual/bulk) → free providers first,
+            paid OpenRouter as fallback. Saves money on high-volume, low-stakes work.
+          * Everything else → paid first (quality), free providers as a last-resort
+            fallback so the platform still answers if OpenRouter/Anthropic is down.
+
+        Pass ``prefer_free=True/False`` to override the per-task default. Returns the
+        same dict shape regardless of which provider served it (adds a ``provider``
+        key when answered by the free router).
         """
+        free = self._get_free_router()
+        want_free_first = (
+            prefer_free if prefer_free is not None else (task_type in _CHEAP_TASKS)
+        )
+
+        # Free-first path (cheap tasks): try free, fall back to paid on exhaustion.
+        if free is not None and want_free_first:
+            try:
+                return await free.chat_completion(
+                    messages,
+                    task_type=task_type,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            except AllProvidersFailed as exc:
+                logger.warning("Free providers exhausted (%s) — falling back to paid", exc)
+
+        # Paid path.
+        try:
+            return await self._paid_chat_completion(
+                messages, model=model, temperature=temperature, max_tokens=max_tokens
+            )
+        except Exception as paid_err:
+            # Last-resort free fallback for paid-first (expensive) tasks.
+            if free is not None and not want_free_first:
+                logger.warning(
+                    "Paid LLM failed (%s) — trying free providers as fallback", paid_err
+                )
+                try:
+                    return await free.chat_completion(
+                        messages,
+                        task_type=task_type,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
+                except AllProvidersFailed:
+                    logger.error("Both paid and free providers failed")
+            raise
+
+    async def _paid_chat_completion(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 4096,
+    ) -> Dict[str, Any]:
+        """Send a chat-completion request to paid OpenRouter with retry logic."""
         resolved_model = model or settings.DEFAULT_LLM_MODEL
         payload = {
             "model": resolved_model,
@@ -212,6 +287,7 @@ class OpenRouterClient:
             model=self.select_model("classification"),
             temperature=0.0,
             max_tokens=32,
+            task_type="classification",  # routes free-first, paid fallback
         )
         raw = result["text"].strip().lower()
         # Fuzzy match against categories

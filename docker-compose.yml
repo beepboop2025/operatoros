@@ -20,6 +20,26 @@ services:
     networks:
       - operatoros-net
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: operatoros-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://fastapi:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    depends_on:
+      - fastapi
+    restart: unless-stopped
+    networks:
+      - operatoros-net
+
   postgres:
     image: pgvector/pgvector:pg16
     container_name: operatoros-db

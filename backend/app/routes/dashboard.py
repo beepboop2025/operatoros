@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
+
+from collections import Counter
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import and_, func, select
@@ -17,7 +18,7 @@ from app.models.client import Client
 from app.models.compliance import ComplianceStatus, ComplianceTask
 from app.models.computation import TaxComputation
 from app.models.document import Document, DocumentStatus
-from app.models.query import Query
+from app.models.query import Query as QueryModel
 from app.models.user import User
 from app.schemas.dashboard import (
     ComplianceOverview,
@@ -101,8 +102,8 @@ async def get_stats(
 
     # Queries today
     queries_today_result = await db.execute(
-        select(func.count(Query.id)).where(
-            Query.created_at >= today_start
+        select(func.count(QueryModel.id)).where(
+            QueryModel.created_at >= today_start
         )
     )
     queries_today = queries_today_result.scalar_one()
@@ -113,7 +114,6 @@ async def get_stats(
         overdue_tasks=overdue_tasks,
         documents_processed=documents_processed,
         queries_today=queries_today,
-        revenue_this_month=Decimal("0"),  # Placeholder: no revenue model yet
     )
 
     await cache.set(cache_key, stats.model_dump(mode="json"), TTL_DASHBOARD_STATS)
@@ -236,9 +236,9 @@ async def get_recent_activity(
 
     # Recent queries
     queries_result = await db.execute(
-        select(Query, User.full_name)
-        .outerjoin(User, Query.asked_by == User.id)
-        .order_by(Query.created_at.desc())
+        select(QueryModel, User.full_name)
+        .outerjoin(User, QueryModel.asked_by == User.id)
+        .order_by(QueryModel.created_at.desc())
         .limit(10)
     )
     recent_queries = [
@@ -323,12 +323,28 @@ async def get_compliance_calendar(
     """
     from app.utils.compliance_calendar import generate_compliance_calendar
 
-    # Generate a reference calendar for a generic entity
+    # Derive the most representative entity type from active clients.
+    # Fall back to private_limited when no clients exist yet.
+    entity_rows = await db.execute(
+        select(Client.entity_type)
+        .where(Client.is_active.is_(True))
+    )
+    entity_types = [row[0] for row in entity_rows.all()]
+    if entity_types:
+        most_common = Counter(entity_types).most_common(1)[0][0]
+        entity_type = most_common.value
+    else:
+        entity_type = "private_limited"
+
+    # Companies/LLPs are always audited under their governing law; default others
+    # to non-audit for the statutory calendar unless data says otherwise.
+    audit_applicable = entity_type in ("private_limited", "public_limited", "llp")
+
     fy_start = date.today().year if date.today().month >= 4 else date.today().year - 1
     fy = f"{fy_start}-{(fy_start + 1) % 100:02d}"
     generic_calendar = generate_compliance_calendar(
-        entity_type="private_limited",
-        audit_applicable=True,
+        entity_type=entity_type,
+        audit_applicable=audit_applicable,
         fy=fy,
     )
 

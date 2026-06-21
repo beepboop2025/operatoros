@@ -41,6 +41,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     *data* must contain at minimum ``sub`` (user id) and ``role``.
     """
     to_encode = data.copy()
+    # Distinguish access from refresh tokens so an access token cannot be
+    # replayed at the /refresh endpoint (and vice versa).
+    to_encode.setdefault("type", "access")
 
     expire = datetime.now(timezone.utc) + (
         expires_delta
@@ -60,11 +63,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     )
 
 
-def verify_token(token: str) -> TokenPayload:
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create a signed refresh JWT (``type=refresh``, longer-lived than access)."""
+    to_encode = data.copy()
+    to_encode["type"] = "refresh"
+    return create_access_token(
+        to_encode,
+        expires_delta=expires_delta or timedelta(days=7),
+    )
+
+
+def verify_token(token: str, expected_type: str | None = None) -> TokenPayload:
     """
     Decode and validate *token*.
 
-    Returns a ``TokenPayload`` on success; raises 401 on any failure.
+    Returns a ``TokenPayload`` on success; raises 401 on any failure. When
+    *expected_type* is given (``access``/``refresh``), the token's ``type``
+    claim must match, else a 401 is raised.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,6 +99,9 @@ def verify_token(token: str) -> TokenPayload:
         exp = payload.get("exp")
 
         if sub is None or role is None:
+            raise credentials_exception
+
+        if expected_type is not None and payload.get("type") != expected_type:
             raise credentials_exception
 
         return TokenPayload(

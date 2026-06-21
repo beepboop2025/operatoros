@@ -22,9 +22,12 @@ from app.schemas.notice import (
     NoticeProcessRequest,
     NoticeResponse,
     NoticeResponseDraft,
+    NoticeSubmitResponseRequest,
     NoticeType,
 )
 from app.schemas.pagination import paginated_response
+from app.routes.draft import get_drafter
+from app.services.communication_drafter import CommunicationDrafter
 
 router = APIRouter(tags=["notices"])
 
@@ -331,12 +334,12 @@ async def draft_notice_response(
     request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    drafter: CommunicationDrafter = Depends(get_drafter),
 ) -> NoticeResponseDraft:
-    """Generate a draft response for a notice.
+    """Generate a draft response for a notice using the LLM.
 
-    **Note:** This is currently a placeholder. In production, this endpoint will
-    use the LLM to analyze the notice content, applicable laws, and client
-    history to generate a contextually appropriate response draft.
+    The draft is generated from the notice content, client details, and any
+    available context. If the LLM service is unavailable, a 503 is returned.
     """
 
     result = await db.execute(
@@ -352,18 +355,31 @@ async def draft_notice_response(
             detail="Notice not found",
         )
 
-    # Placeholder draft
-    draft_text = (
-        f"Draft response for {notice.notice_type.value} notice.\n\n"
-        f"Respected Sir/Madam,\n\n"
-        f"This is in reference to the notice dated {notice.notice_date.isoformat()} "
-        f"issued to our client. We are in the process of reviewing the notice and "
-        f"compiling the necessary documentation to provide a comprehensive response.\n\n"
-        f"We request you to kindly allow us the time as per the statutory provisions "
-        f"to submit our detailed reply.\n\n"
-        f"Yours faithfully,\n"
-        f"[Authorized Representative]"
+    client = notice.client
+    client_details = (
+        f"Client: {client.firm_name}\n"
+        f"PAN: {client.pan}\n"
+        f"GSTIN: {client.gstin or 'N/A'}\n"
+        f"Entity type: {client.entity_type.value}"
     )
+    notice_summary = (
+        f"Notice type: {notice.notice_type.value}\n"
+        f"Notice date: {notice.notice_date.isoformat()}\n"
+        f"Response deadline: {notice.response_deadline.isoformat() if notice.response_deadline else 'N/A'}\n"
+        f"Summary: {notice.summary or 'N/A'}"
+    )
+
+    try:
+        draft_text = await drafter.draft_notice_response(
+            notice_summary=notice_summary,
+            client_details=client_details,
+            legal_position="No additional legal position provided.",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Unable to generate notice response draft at this time: {exc}",
+        ) from exc
 
     # Update notice status
     notice.status = NoticeStatus.response_drafted
@@ -382,14 +398,67 @@ async def draft_notice_response(
     return NoticeResponseDraft(
         notice_id=notice.id,
         draft_text=draft_text,
-        legal_references=[
-            "Section 143(1) of the Income Tax Act, 1961",
-            "Rule 127 of the Income Tax Rules, 1962",
-        ],
-        recommended_actions=[
-            "Review the discrepancies highlighted in the notice",
-            "Gather supporting documents (Form 16, Form 26AS, AIS)",
-            "Prepare a detailed reconciliation statement",
-            "File response before the deadline",
-        ],
+        legal_references=[],
+        recommended_actions=[],
     )
+
+
+# --------------------------------------------------------------------------- #
+#  POST /{notice_id}/submit-response — Persist a filed response
+# --------------------------------------------------------------------------- #
+
+
+@router.post(
+    "/{notice_id}/submit-response",
+    response_model=NoticeResponse,
+    summary="Submit a filed response for a notice",
+)
+async def submit_notice_response(
+    notice_id: uuid.UUID,
+    body: NoticeSubmitResponseRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> NoticeResponse:
+    """Persist a filed response against a notice and mark it as response_filed."""
+
+    result = await db.execute(
+        select(Notice)
+        .options(selectinload(Notice.client))
+        .where(Notice.id == notice_id)
+    )
+    notice = result.scalar_one_or_none()
+
+    if notice is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notice not found",
+        )
+
+    # Authorisation: only an admin, the assignee, or a user in the same firm as
+    # the notice's client may file a response (prevents IDOR via notice id).
+    if (
+        current_user.role.value != "admin"
+        and notice.assigned_to != current_user.id
+        and (notice.client is None or notice.client.firm_id != current_user.firm_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notice not found",
+        )
+
+    notice.filed_response = body.response_text
+    notice.status = NoticeStatus.response_filed
+    await db.flush()
+
+    await log_action(
+        db,
+        user_id=current_user.id,
+        action="notice.submit_response",
+        entity_type="notice",
+        entity_id=notice.id,
+        details={"response_length": len(body.response_text)},
+        ip_address=get_client_ip(request),
+    )
+
+    return _notice_to_response(notice)

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { complianceApi, clientsApi } from '../api/client';
+import { complianceApi, clientsApi, getErrorMessage } from '../api/client';
 import type {
   Client,
   ComplianceTask,
@@ -12,27 +12,16 @@ import {
   Filter,
   Loader2,
   CheckCircle2,
-  Clock,
-  AlertTriangle,
   Play,
   ChevronDown,
   RefreshCw,
   Calendar,
-  LucideIcon,
 } from 'lucide-react';
 import { formatDate, statusColor, getAssessmentYears } from '../utils/format';
+import { Panel, Button, Field, Select } from './textura';
 
 const STATUS_OPTIONS: string[] = ['all', 'pending', 'in_progress', 'completed', 'overdue'];
 const TASK_TYPES: string[] = ['all', 'itr', 'gst', 'tds', 'advance_tax', 'audit', 'roc', 'other'];
-
-const statusIcon = (status: string | undefined): LucideIcon => {
-  switch (status) {
-    case 'completed': return CheckCircle2;
-    case 'in_progress': return Play;
-    case 'overdue': return AlertTriangle;
-    default: return Clock;
-  }
-};
 
 interface ComplianceFilters {
   status: string;
@@ -104,7 +93,7 @@ export default function ComplianceCalendar() {
   const statusColorDot = (status: string | undefined): string => {
     switch (status) {
       case 'completed': return 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]';
-      case 'in_progress': return 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]';
+      case 'in_progress': return 'bg-textura-accent shadow-[0_0_6px_rgba(161,236,255,0.5)]';
       case 'overdue': return 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]';
       default: return 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)]';
     }
@@ -115,131 +104,131 @@ export default function ComplianceCalendar() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-stagger-1">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Compliance Calendar</h1>
-          <p className="text-sm text-slate-400">Track deadlines and manage compliance tasks</p>
+          <h1 className="text-2xl font-bold text-textura-text">Compliance Calendar</h1>
+          <p className="text-sm text-textura-dim">Track deadlines and manage compliance tasks</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="md"
+            icon={<Filter className="w-4 h-4" />}
             onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center gap-2 px-3 py-2.5 border border-white/[0.08] text-sm font-medium text-slate-300 rounded-xl hover:bg-white/[0.04] transition-colors"
+            className="rounded-xl"
           >
-            <Filter className="w-4 h-4" /> Filters <ChevronDown className="w-3 h-3" />
-          </button>
-          <button
+            Filters <ChevronDown className="w-3 h-3" />
+          </Button>
+          <Button
+            variant="gradient"
+            size="md"
+            icon={<Calendar className="w-4 h-4" />}
             onClick={() => setShowGenerate(!showGenerate)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 gradient-brand text-white text-sm font-medium rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 hover-lift transition-all"
           >
-            <Calendar className="w-4 h-4" /> Generate Calendar
-          </button>
+            Generate Calendar
+          </Button>
         </div>
       </div>
 
       {/* Generate calendar panel */}
       {showGenerate && (
-        <div className="card p-5 animate-fade-in">
-          <h3 className="font-semibold text-slate-200 mb-3">Generate Compliance Calendar</h3>
+        <Panel className="p-5 animate-fade-in">
+          <h3 className="font-semibold text-textura-text mb-3">Generate Compliance Calendar</h3>
           <div className="flex flex-col sm:flex-row gap-3">
-            <select
+            <Select
               value={genClientId}
               onChange={(e) => setGenClientId(e.target.value)}
-              className="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none"
+              className="flex-1"
             >
               <option value="">Select Client</option>
               {clientList.map((c) => (
                 <option key={c.id} value={c.id}>{c.firm_name || c.name}</option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               value={genFY}
               onChange={(e) => setGenFY(e.target.value)}
-              className="px-3 py-2.5 rounded-xl text-sm outline-none"
             >
               {getAssessmentYears().map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
-            </select>
-            <button
+            </Select>
+            <Button
+              variant="success"
+              size="md"
+              loading={generateMutation.isPending}
+              disabled={!genClientId}
+              icon={<RefreshCw className="w-4 h-4" />}
               onClick={() => generateMutation.mutate()}
-              disabled={!genClientId || generateMutation.isPending}
-              className="px-4 py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 disabled:opacity-50 text-emerald-300 text-sm font-medium rounded-xl flex items-center gap-2 transition-all"
             >
-              {generateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Generate
-            </button>
+            </Button>
           </div>
           {generateMutation.isError && (
-            <p className="text-sm text-red-400 mt-2">
-              {(generateMutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to generate calendar'}
+            <p className="text-sm text-danger mt-2">
+              {getErrorMessage(generateMutation.error, 'Failed to generate calendar')}
             </p>
           )}
           {generateMutation.isSuccess && (
-            <p className="text-sm text-emerald-400 mt-2">Calendar generated successfully!</p>
+            <p className="text-sm text-success mt-2">Calendar generated successfully!</p>
           )}
-        </div>
+        </Panel>
       )}
 
       {/* Filters panel */}
       {showFilters && (
-        <div className="card p-5 animate-fade-in">
+        <Panel className="p-5 animate-fade-in">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Client</label>
-              <select
+            <Field label="Client" className="flex-1">
+              <Select
                 value={filters.client_id}
                 onChange={(e) => setFilters((f) => ({ ...f, client_id: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               >
                 <option value="">All Clients</option>
                 {clientList.map((c) => (
                   <option key={c.id} value={c.id}>{c.firm_name || c.name}</option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Status</label>
-              <select
+              </Select>
+            </Field>
+            <Field label="Status">
+              <Select
                 value={filters.status}
                 onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>{s === 'all' ? 'All' : s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Type</label>
-              <select
+              </Select>
+            </Field>
+            <Field label="Type">
+              <Select
                 value={filters.type}
                 onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
               >
                 {TASK_TYPES.map((t) => (
                   <option key={t} value={t}>{t === 'all' ? 'All Types' : t.toUpperCase()}</option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Field>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Timeline */}
       {isLoading ? (
-        <div className="card p-12 text-center">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-          <p className="text-sm text-slate-400 mt-2">Loading compliance tasks...</p>
-        </div>
+        <Panel className="p-12 text-center">
+          <Loader2 className="w-6 h-6 animate-spin text-textura-accent mx-auto" />
+          <p className="text-sm text-textura-dim mt-2">Loading compliance tasks...</p>
+        </Panel>
       ) : taskList.length === 0 ? (
-        <div className="card p-12 text-center">
-          <CalendarCheck className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-300 font-medium">No compliance tasks found</p>
-          <p className="text-sm text-slate-500 mt-1">Generate a compliance calendar for a client to get started</p>
-        </div>
+        <Panel className="p-12 text-center">
+          <CalendarCheck className="w-10 h-10 text-textura-muted mx-auto mb-3" />
+          <p className="text-textura-dim font-medium">No compliance tasks found</p>
+          <p className="text-sm text-textura-muted mt-1">Generate a compliance calendar for a client to get started</p>
+        </Panel>
       ) : (
         <div className="space-y-6">
           {sortedMonths.map((month, mi) => (
             <div key={month} className={`animate-stagger-${Math.min(mi + 2, 8)}`}>
-              <h3 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wider mb-3">{month}</h3>
+              <h3 className="text-[13px] font-semibold text-textura-muted uppercase tracking-wider mb-3">{month}</h3>
               <div className="space-y-2">
                 {grouped[month]
                   .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
@@ -251,11 +240,11 @@ export default function ComplianceCalendar() {
                     >
                       <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${statusColorDot(task.status)}`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-200">{task.task_name || task.name}</p>
+                        <p className="text-sm font-medium text-textura-text">{task.task_name || task.name}</p>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                          <span className="text-xs text-slate-500">Due: {formatDate(task.due_date)}</span>
-                          {task.client_name && <span className="text-xs text-slate-500">{task.client_name}</span>}
-                          {task.task_type && <span className="text-xs text-slate-500 uppercase">{task.task_type}</span>}
+                          <span className="text-xs text-textura-muted">Due: {formatDate(task.due_date)}</span>
+                          {task.client_name && <span className="text-xs text-textura-muted">{task.client_name}</span>}
+                          {task.task_type && <span className="text-xs text-textura-muted uppercase">{task.task_type}</span>}
                         </div>
                       </div>
                       <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${statusColor(task.status)}`}>
@@ -267,7 +256,7 @@ export default function ComplianceCalendar() {
                             <button
                               onClick={(e) => { e.stopPropagation(); handleStatusUpdate(task.id, 'in_progress'); }}
                               title="Start"
-                              className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                              className="p-1.5 text-textura-accent hover:bg-textura-accent/10 rounded-lg transition-colors"
                             >
                               <Play className="w-4 h-4" />
                             </button>
@@ -275,7 +264,7 @@ export default function ComplianceCalendar() {
                           <button
                             onClick={(e) => { e.stopPropagation(); handleStatusUpdate(task.id, 'completed'); }}
                             title="Mark Complete"
-                            className="p-1.5 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                            className="p-1.5 text-success hover:bg-success/10 rounded-lg transition-colors"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                           </button>

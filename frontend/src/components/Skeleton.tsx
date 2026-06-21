@@ -1,10 +1,10 @@
-import { ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 
 // ── Base skeleton block ──────────────────────────────────────────────────────
 
 interface SkeletonBlockProps {
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export function SkeletonBlock({ className = '', style }: SkeletonBlockProps) {

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from app.models.computation import TaxComputation
     from app.models.notice import Notice
     from app.models.audit_log import AuditLog
+    from app.models.notification import Notification
 
 
 class UserRole(str, enum.Enum):
@@ -81,6 +82,9 @@ class User(Base):
     )
     assigned_notices: Mapped[List["Notice"]] = relationship(
         back_populates="assignee", foreign_keys="Notice.assigned_to"
+    )
+    notifications: Mapped[List["Notification"]] = relationship(
+        back_populates="user", foreign_keys="Notification.user_id"
     )
     audit_logs: Mapped[List["AuditLog"]] = relationship(
         back_populates="user", foreign_keys="AuditLog.user_id"

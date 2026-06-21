@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
@@ -360,6 +362,63 @@ async def get_document(
         )
 
     return DocumentResponse.model_validate(document)
+
+
+# --------------------------------------------------------------------------- #
+#  GET /{document_id}/download — Stream the stored file
+# --------------------------------------------------------------------------- #
+
+
+@router.get(
+    "/{document_id}/download",
+    summary="Download document file",
+)
+async def download_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    """Stream the stored file for a document.
+
+    Returns the file with the original filename in the Content-Disposition
+    header. If the file is missing on disk, a 404 is returned.
+    """
+    result = await db.execute(
+        select(Document)
+        .options(selectinload(Document.client))
+        .where(Document.id == document_id)
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    # Authorisation: only an admin, the uploader, or a user in the same firm as
+    # the document's client may download it (prevents IDOR via document id).
+    if (
+        current_user.role.value != "admin"
+        and document.uploaded_by != current_user.id
+        and (document.client is None or document.client.firm_id != current_user.firm_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    file_path = Path(document.file_url)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found on disk",
+        )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=document.original_filename,
+        media_type="application/octet-stream",
+    )
 
 
 # --------------------------------------------------------------------------- #
