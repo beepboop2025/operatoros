@@ -235,6 +235,14 @@ async def seed() -> None:
 async def _seed_compliance(db, clients, demo, associate) -> None:
     rows = [
         # (client_pan, type, due_date, AY, status, assignee_id, description)
+        # ── Due within the next 7 days (populate the dashboard "Upcoming" panel) ──
+        ("AABFI5678P", TaskType.tds_return, days(2),
+         "2026-27", ComplianceStatus.in_progress, demo.id, "Form 26Q TDS payment — due in 2 days"),
+        ("AAGFG2345L", TaskType.gst_return, days(4),
+         "2026-27", ComplianceStatus.pending, associate.id, "GSTR-3B for May 2026 — Green Valley Traders"),
+        ("AXTPM6789K", TaskType.advance_tax, days(6),
+         "2026-27", ComplianceStatus.pending, demo.id, "Advance tax Q1 instalment — salaried client"),
+        # ── The rest ──────────────────────────────────────────────────────────
         ("AABCT1234N", TaskType.gst_return, days(-3),
          "2026-27", ComplianceStatus.overdue, associate.id, "GSTR-3B for May 2026 — output tax ₹4.2L"),
         ("AABCT1234N", TaskType.tds_return, days(12),

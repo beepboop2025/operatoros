@@ -389,6 +389,9 @@ export interface ActivityItem {
 
 export interface RecentActivityResponse {
   items?: ActivityItem[];
+  recent_queries?: Array<{ id: string; question: string; query_type?: string; asked_by_name?: string; created_at: string }>;
+  recent_documents?: Array<{ id: string; original_filename: string; doc_type?: string; client_name?: string; uploaded_at: string }>;
+  recent_computations?: Array<{ id: string; computation_type?: string; result_summary?: string; client_name?: string; created_at: string }>;
 }
 
 export interface UpcomingTasksResponse {
