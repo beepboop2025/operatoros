@@ -35,13 +35,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    # ── AI / LLM ─────────────────────────────────────────────────────────────
+    # ── Model providers ──────────────────────────────────────────────────────
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     DEFAULT_LLM_MODEL: str = "anthropic/claude-sonnet-4-20250514"
 
-    # ── Free LLM router (perpetually-free providers) ───────────────────────────
+    # ── Free-tier model router ────────────────────────────────────────────────
     # When true, low-stakes task types (classification/factual/bulk) are served by
     # free providers first, falling back to paid OpenRouter only if all free
     # providers fail. High-stakes advisory/drafting always prefers paid for quality.

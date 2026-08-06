@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title="OperatorOS - AuditMind API",
     version="1.0.0",
-    description="AI-powered audit and compliance platform for CA firms",
+    description="Cross-border tax calculation, document, and compliance workflow API",
     lifespan=lifespan,
 )
 
