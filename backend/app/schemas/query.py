@@ -1,4 +1,4 @@
-"""Query schemas — AI-powered Q&A on client documents."""
+"""Schemas for retrieval-grounded questions over client documents."""
 
 from __future__ import annotations
 

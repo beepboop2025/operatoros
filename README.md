@@ -4,9 +4,8 @@
 
 # OperatorOS
 
-### Cross-border tax, _finally clear._
-
-**A premium tax-intelligence platform for NRIs, returning Indians, and global founders** — Residency, DTAA, §195, FTC, Customs & a live World Tax Radar, in one CA-backed workspace.
+Cross-border tax workflows for NRIs, returning Indians, and global founders:
+residency, DTAA, Section 195, foreign tax credit, customs, and compliance monitoring.
 
 <br />
 
@@ -22,7 +21,7 @@
 
 <br />
 
-<img src="docs/screenshots/hero.png" alt="OperatorOS — Cross-border tax, finally clear" width="100%" />
+<img src="docs/screenshots/hero.png" alt="OperatorOS cross-border tax dashboard" width="100%" />
 
 <br />
 
@@ -30,13 +29,11 @@
 
 ---
 
-## The problem
+## Scope
 
-If you've ever lived, earned, or invested across borders, you've asked these out loud — and gotten three different answers:
-
-> **Am I a resident this year?** · **Am I being double-taxed?** · **How much TDS on my property sale?** · **What changed in the law while I was away?**
-
-OperatorOS answers all four — with computation engines that refuse to guess, and a live radar that watches the world's tax desks so you don't have to.
+OperatorOS groups calculations and review workflows for residency, treaty relief,
+non-resident payments, foreign tax credit, and customs. Its tax radar collects
+public developments for review alongside those workflows.
 
 <div align="center">
 <img src="docs/screenshots/nri-features.png" alt="Built for the questions NRIs actually ask" width="92%" />
@@ -46,7 +43,7 @@ OperatorOS answers all four — with computation engines that refuse to guess, a
 
 ## The modules
 
-Six purpose-built cross-border engines, on top of a full Indian tax & compliance suite.
+Six cross-border modules sit alongside the Indian tax and compliance modules.
 
 | Module | What it does |
 |---|---|
@@ -55,17 +52,19 @@ Six purpose-built cross-border engines, on top of a full Indian tax & compliance
 | **Section 195 Toolkit** | TDS on payments to NRIs, the **Form 15CA/15CB** workflow, lower-deduction routes, and property-sale TDS. |
 | **Foreign Tax Credit** | Rule 128 / **Form 67** calculator — per-country allowable FTC, DTAA vs non-DTAA. |
 | **Customs & Tariffs** | HSN-keyed landed cost — **BCD + SWS + cess + IGST**, with FTA preferential-rate flags. |
-| **World Tax Radar** | A live feed of global tax & trade developments — DTAA changes, **BEPS / Pillar Two**, tariffs, FEMA — scored by NRI impact. |
+| **World Tax Radar** | A feed of global tax and trade developments, including DTAA changes, BEPS/Pillar Two, tariffs, and FEMA, scored for NRI relevance. |
 
-Plus the domestic core: **Income Tax** (old/new regime), **TDS**, **GST**, **Capital Gains** with CII indexation, interest 234A/B/C, HRA, depreciation, a RAG **AI advisor**, document intelligence, notice drafting, and a compliance calendar.
+The domestic modules cover **Income Tax** (old/new regime), **TDS**, **GST**, **Capital Gains** with CII indexation, interest 234A/B/C, HRA, depreciation, a retrieval-grounded advisor, document processing, notice drafting, and a compliance calendar.
 
 ---
 
-## Built to be trusted, not just clever
+## Verification boundaries
 
-> OperatorOS **never invents tax law.** Every pure computation is unit-tested; every rate, treaty value, and customs duty is sourced from authoritative texts and **CA-reviewed** before it goes live. Until a value is verified, the engine returns *"pending CA review"* — not a confident wrong number.
-
-That single design choice is what separates a demo from something you'd stake a client's filing on.
+Deterministic calculations have unit tests. Reference data has a review state, and
+unverified values can be marked `pending CA review`; the status table below notes
+that CA verification of DTAA and customs data is still in progress. Generated or
+calculated output is not a substitute for current source documents or professional
+tax advice.
 
 ---
 
@@ -79,11 +78,11 @@ That single design choice is what separates a demo from something you'd stake a 
 └────────────────────────────┘     │  RAG: pgvector + free-llm-router       │
                                     │  Celery workers · Redis · Alembic      │
 ┌─ World Tax Radar ─────────┐  push └────────────────────────────────────────┘
-│  social_scraper + LLM      │ ────▶  /api/tax-intel  ▸  live radar panel
+│  social scraper + model    │ ────▶  /api/tax-intel  ▸  radar panel
 └────────────────────────────┘
 ```
 
-**~160 passing backend tests · strict-TypeScript frontend that builds clean · IDOR-hardened, token-typed auth.**
+The repository includes backend tests, strict TypeScript checks, and authorization regression tests.
 
 ---
 
@@ -148,14 +147,13 @@ how it's built, fork it on GitHub, and run it locally. But **commercial use, hos
 a service, or building a competing product requires a separate commercial license.** See
 [`LICENSE.md`](LICENSE.md).
 
-> The engines are public. The **CA-verified data that makes them trustworthy is not** — and
-> that's the part worth licensing. Curious what the full, data-complete product can do?
-> Open an issue. ★ the repo to follow where this goes.
+The repository exposes the calculation engines; reviewed commercial data may be
+licensed separately. Open an issue for licensing questions.
 
 ---
 
 <div align="center">
 <sub>Built with the <strong>Textura</strong> design language · pure-black stage, icy <code>#A1ECFF</code> + peach <code>#FFAB98</code> accents, Gilda Display × Lato.</sub>
 <br /><br />
-<strong>OperatorOS</strong> — <em>stop guessing, start computing.</em>
+<strong>OperatorOS</strong> — cross-border tax workflows and review tooling.
 </div>

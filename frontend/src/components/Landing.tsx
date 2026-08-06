@@ -124,17 +124,17 @@ function Hero() {
       <div className="max-w-5xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-textura-line-subtle bg-textura-panel/50 text-xs font-medium text-textura-dim mb-6 animate-stagger-1">
           <Sparkles className="w-3.5 h-3.5 text-textura-warm" />
-          Cross-border tax intelligence for NRIs & global Indians
+          Cross-border tax workflows for NRIs and global Indians
         </div>
 
         <h1 className="font-[var(--font-gilda)] text-4xl sm:text-5xl lg:text-7xl font-normal text-textura-text leading-[1.1] tracking-tight mb-6 animate-stagger-2">
-          Cross-border tax,{' '}
-          <em className="not-italic gradient-text">finally clear.</em>
+          Residency, treaty, and filing{' '}
+          <em className="not-italic gradient-text">workflows in one place.</em>
         </h1>
 
         <p className="text-lg sm:text-xl text-textura-dim max-w-2xl mx-auto mb-10 animate-stagger-3 leading-relaxed">
-          For NRIs, returning Indians, and global founders. Residency, DTAA, TDS, FTC,
-          customs, and a world-tax radar — in one CA-backed platform.
+          Work through residency, DTAA, TDS, foreign tax credit, and customs questions,
+          with source and review states visible in the product.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-stagger-4">
